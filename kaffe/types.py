@@ -59,7 +59,7 @@ def shape_identity(node):
     if node.output_shape:
         return node.output_shape
     # We most likely have a data layer on our hands. The problem is,
-    # caffe infers the dimensions of the data from the source (eg: LMDB).
+    # Caffe infers the dimensions of the data from the source (eg: LMDB).
     # We want to avoid reading datasets here. Fail for now.
     # This can be temporarily fixed by transforming the data layer to
     # Caffe's "input" layer (as is usually used in the "deploy" version).

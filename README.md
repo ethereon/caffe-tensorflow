@@ -2,7 +2,7 @@
 
 This is a proof-of-concept that shows how to use pretrained Caffe models in TensorFlow.
 
-This demo imports the [VGG-16 network](https://gist.github.com/ksimonyan/211839e770f7b538e2d8#file-readme-md) network.
+This demo imports the [VGG-16 network](https://gist.github.com/ksimonyan/211839e770f7b538e2d8#file-readme-md).
 
 Verified on the ILSVRC2012 validation set, on which it achieves a top 5 accuracy of 89.88%.
 
