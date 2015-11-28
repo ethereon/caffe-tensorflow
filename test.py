@@ -3,11 +3,11 @@
 import os
 import sys
 import cv2
-import kaffe
 import numpy as np
 import tensorflow as tf
-from kaffe.transformers import TensorFlowLoader
-from vgg import VGG16
+
+import examples
+from kaffe.tensorflow import TensorFlowLoader
 
 BATCH_SIZE      = 25
 PRE_CROP_SIZE   = 256
@@ -51,11 +51,11 @@ class ImageNet(object):
     def __len__(self):
         return len(self.labels)
 
-def test_imagenet(params_path, val_path, data_path, top_k=5):
+def test_imagenet(Net, params_path, val_path, data_path, top_k=5):
     test_data   = tf.placeholder(tf.float32, shape=(BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
     test_labels = tf.placeholder(tf.int32, shape=(BATCH_SIZE,))
-    logits      = VGG16(test_data).get_output()
-    top_k_op    = tf.nn.in_top_k(logits, test_labels, top_k)
+    probs       = Net({'data':test_data}).get_output()
+    top_k_op    = tf.nn.in_top_k(probs, test_labels, top_k)
     imagenet    = ImageNet(val_path, data_path)
     correct     = 0
     count       = 0
@@ -72,10 +72,18 @@ def test_imagenet(params_path, val_path, data_path, top_k=5):
 
 def main():
     args = sys.argv[1:]
-    if len(args)!=3:
-        print('usage: %s net.params imagenet-val.txt imagenet-data-dir'%os.path.basename(__file__))
+    if len(args) not in (3, 4):
+        print('usage: %s net.params imagenet-val.txt imagenet-data-dir [model-index=0]'%os.path.basename(__file__))
         exit(-1)
-    test_imagenet(*args)
+    model_index = 0 if len(args)==3 else int(args[3])
+    if model_index>=len(examples.MODELS):
+        print('Invalid model index. Options are:')
+        for idx, klass in enumerate(examples.MODELS):
+            print('%s: %s'%(idx, klass.__name__))
+        exit(-1)  
+    Net = examples.MODELS[model_index]
+    print('Using model: %s'%(Net.__name__))
+    test_imagenet(Net, *args[:3])
 
 if __name__ == '__main__':
     main()
