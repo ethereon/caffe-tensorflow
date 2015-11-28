@@ -178,9 +178,10 @@ class DataReshaper(object):
                     del node.reshaped_data
 
 class GraphBuilder(object):
-    def __init__(self, def_path, data_path=None):
+    def __init__(self, def_path, data_path=None, phase='test'):
         self.def_path = def_path
         self.data_path = data_path
+        self.phase = phase
         self.load()
 
     def load(self):
@@ -188,11 +189,28 @@ class GraphBuilder(object):
         with open(self.def_path, 'rb') as def_file:
             text_format.Merge(def_file.read(), self.params)
 
-    def remove_duplicates(self, nodes):
-        # Duplicate nodes can exist as a result of Caffe's
-        # "phase" mechanism. Currently, we assume that duplicate
-        # nodes are structurally similar and arbitrarily select one.
-        return ({t.name:t for t in nodes}).values()
+    def filter_layers(self, layers):
+        phase_map = {0:'train', 1:'test'}
+        filtered_layer_names = set()
+        filtered_layers = []
+        for layer in layers:
+            phase = self.phase
+            if len(layer.include):
+                phase = phase_map[layer.include[0].phase]
+            if len(layer.exclude):
+                phase = phase_map[1-layer.include[0].phase]
+            exclude = (phase!=self.phase)
+            # Dropout layers appear in a fair number of Caffe
+            # test-time networks. These are just ignored. We'll
+            # filter them out here.
+            if (not exclude) and (phase=='test'):
+                exclude = (layer.type==LayerType.Dropout)
+            if not exclude:
+                filtered_layers.append(layer)
+                # Guard against dupes.
+                assert layer.name not in filtered_layer_names
+                filtered_layer_names.add(layer.name)
+        return filtered_layers
 
     def make_node(self, layer):
         kind = NodeKind.map_raw_kind(layer.type)
@@ -215,9 +233,9 @@ class GraphBuilder(object):
 
     def build(self):
         layers = self.params.layers or self.params.layer
+        layers = self.filter_layers(layers)
         nodes = self.make_input_nodes()
         nodes += [self.make_node(layer) for layer in layers]
-        nodes = self.remove_duplicates(nodes)
         graph = Graph(nodes=nodes, name=self.params.name)
         node_outputs = {}
         for layer in layers:
