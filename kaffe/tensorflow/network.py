@@ -57,7 +57,7 @@ class Network(object):
         assert padding in ('SAME', 'VALID')
 
     @layer
-    def conv(self, input, k_h, k_w, c_o, s_h, s_w, padding, name, relu=False):
+    def conv(self, input, k_h, k_w, c_o, s_h, s_w, padding, name, relu=True):
         self.validate_padding(padding)
         c_i = input.get_shape()[-1] # cur_c_i = prev_c_o
         with tf.variable_scope(name) as scope:
@@ -105,7 +105,7 @@ class Network(object):
         return tf.concat(concat_dim=axis, values=inputs, name=name)
 
     @layer
-    def fc(self, input, num_out, name, relu=False):
+    def fc(self, input, num_out, name, relu=True):
         with tf.variable_scope(name) as scope:
             input_shape = input.get_shape()
             if input_shape.ndims==4:

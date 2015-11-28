@@ -8,13 +8,14 @@ from .layers import *
 
 class Node(object):
     def __init__(self, name, kind, layer=None):
-        self.name = name
-        self.kind = kind
-        self.layer = LayerAdapter(layer, kind) if layer is not None else None
-        self.parents = []
-        self.children = []
-        self.data = None
+        self.name         = name
+        self.kind         = kind
+        self.layer        = LayerAdapter(layer, kind) if layer else None
+        self.parents      = []
+        self.children     = []
+        self.data         = None
         self.output_shape = None
+        self.metadata     = {}
 
     def add_parent(self, parent_node):
         assert parent_node not in self.parents
@@ -251,7 +252,28 @@ class GraphBuilder(object):
                 node.output_shape = tuple(input_dim)
         return nodes
 
-    def build(self):
+    def fuse_relus(self, nodes):
+        fused_nodes = []
+        for node in nodes:
+            if node.kind!=NodeKind.ReLU:
+                continue
+            parent = node.get_only_parent()
+            if len(parent.children)!=1:
+                # We can only fuse this ReLU if its parent's
+                # value isn't used by any other node.
+                continue
+            # Rewrite the ReLU's children to its parent.
+            for child in node.children:
+                child.parents.remove(node)
+                parent.add_child(child)
+            # Disconnect the ReLU from the graph.
+            parent.children.remove(node)
+            fused_nodes.append(node)
+            # Annotate the fused node.
+            parent.metadata['relu'] = True
+        return [node for node in nodes if node not in fused_nodes]
+
+    def build(self, fuse_relus=True):
         layers = self.params.layers or self.params.layer
         layers = self.filter_layers(layers)
         nodes = self.make_input_nodes()
@@ -279,6 +301,8 @@ class GraphBuilder(object):
                     # defined in the prototxt, but as a top (output) for some layer.
                     graph.add_node(Node(child_name, NodeKind.Implicit))
                     node.add_child(graph.get_node(child_name))
+        if fuse_relus:
+            graph = Graph(nodes=self.fuse_relus(graph.nodes), name=graph.name)
         graph.compute_output_shapes()
         if self.data_path is not None:
             DataInjector(self.def_path, self.data_path).inject(graph)

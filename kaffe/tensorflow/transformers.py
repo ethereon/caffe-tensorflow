@@ -12,11 +12,14 @@ class TensorFlowNode(object):
     def format(self, arg):
         return "'%s'"%arg if isinstance(arg, basestring) else str(arg)
 
+    def pair(self, key, value):
+        return '%s=%s'%(key, self.format(value))
+
     def emit(self):
         args = map(self.format, self.args)        
         if self.kwargs:
-            args += ['%s=%s'%(k, self.format(v)) for k,v in self.kwargs]
-        args.append('name=%s'%(self.format(self.node.name)))
+            args += [self.pair(k, v) for k,v in self.kwargs]
+        args.append(self.pair('name', self.node.name))
         args = ', '.join(args)
         return '%s(%s)'%(self.op, args)
 
@@ -46,18 +49,25 @@ class TensorFlowMapper(NodeMapper):
         padding = get_padding_type(kernel_params, input_shape, node.output_shape)
         return (kernel_params, padding)
 
+    def relu_adapted_node(self, node, *args, **kwargs):
+        # Opt-out instead of opt-in as ReLU(op) is the common case.
+        if not node.metadata.get('relu', False):
+            kwargs['relu']=False
+        return TensorFlowNode(*args, **kwargs)
+
     def map_convolution(self, node):
         (c_o, c_i, h, w) = node.data_shape
         (kernel_params, padding) = self.get_kernel_params(node)
         assert kernel_params.kernel_h==h
         assert kernel_params.kernel_w==w
-        return TensorFlowNode('conv',
-                              kernel_params.kernel_h,
-                              kernel_params.kernel_w,
-                              c_o,
-                              kernel_params.stride_h,
-                              kernel_params.stride_w,
-                              padding)
+        return self.relu_adapted_node(node,
+                                      'conv',
+                                      kernel_params.kernel_h,
+                                      kernel_params.kernel_w,
+                                      c_o,
+                                      kernel_params.stride_h,
+                                      kernel_params.stride_w,
+                                      padding)
 
     def map_relu(self, node):
         return TensorFlowNode('relu')
@@ -81,8 +91,9 @@ class TensorFlowMapper(NodeMapper):
 
     def map_inner_product(self, node):
         #TODO: Axis
-        return TensorFlowNode('fc',
-                              node.parameters.num_output)
+        return self.relu_adapted_node(node,
+                                      'fc',
+                                      node.parameters.num_output)
 
     def map_softmax(self, node):
         return TensorFlowNode('softmax')
