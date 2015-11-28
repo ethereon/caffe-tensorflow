@@ -283,3 +283,65 @@ class GraphBuilder(object):
         if self.data_path is not None:
             DataInjector(self.def_path, self.data_path).inject(graph)
         return graph
+
+class NodeMapper(object):
+    def __init__(self, graph):
+        self.graph = graph
+
+    def attach_node(self, node):
+        return True
+
+    def map(self):
+        nodes = self.graph.topologically_sorted()
+        # Remove input nodes - we'll handle them separately.
+        input_nodes = self.graph.get_input_nodes()
+        nodes = [t for t in nodes if t not in input_nodes]
+        # Decompose DAG into chains.
+        chains = []
+        for node in nodes:
+            attach_to_chain = None
+            if len(node.parents)==1:
+                parent = node.get_only_parent()
+                for chain in chains:
+                    if chain[-1]==parent:
+                        # Node is part of an existing chain.
+                        attach_to_chain = chain
+                        break
+            if attach_to_chain is None:
+                # Start a new chain for this node.
+                attach_to_chain = []
+                chains.append(attach_to_chain)
+            attach_to_chain.append(node)
+        # Map each chain.
+        mapped_chains = []
+        for chain in chains:
+            mapped_chains.append(self.map_chain(chain))
+        return self.commit(mapped_chains)
+
+    def map_chain(self, chain):
+        return [self.map_node(node) for node in chain]
+
+    def map_node(self, node):
+        name = self.get_mapper_name(node)
+        if hasattr(self, name):
+            map_func = getattr(self, name)
+            mapped_node = map_func(node)
+            assert mapped_node is not None
+            if self.attach_node(node):
+                mapped_node.node = node
+            return mapped_node
+        raise KaffeError('No mapper found for node: %s (expected: %s)'%(node, name))
+
+    def get_mapper_name(self, node):
+        name = node.kind
+        if len(name)<=4:
+            # A catch-all for things like ReLU and tanh
+            name = name.lower()
+        else:
+            # Convert from CamelCase to under_scored
+            name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+            name = re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+        return 'map_'+name
+
+    def commit(self, mapped_chains):
+        raise NotImplementedError('Must be implemented by subclass.')
