@@ -11,22 +11,27 @@ class Node(object):
         self.name = name
         self.kind = kind
         self.layer = layer
-        self.parents = set()
-        self.children = set()
+        self.parents = []
+        self.children = []
         self.data = None
         self.output_shape = None
 
     def add_parent(self, parent_node):
-        self.parents.add(parent_node)
-        parent_node.children.add(self)
+        assert parent_node not in self.parents
+        self.parents.append(parent_node)
+        if self not in parent_node.children:
+            parent_node.children.append(self)
 
     def add_child(self, child_node):
-        self.children.add(child_node)
-        child_node.parents.add(self)
+        assert child_node not in self.children
+        self.children.append(child_node)
+        if self not in child_node.parents:
+            child_node.parents.append(self)
 
-    def get_any_parent(self):
-        if len(self.parents):
-            return next(iter(self.parents))
+    def get_only_parent(self):
+        if len(self.parents)!=1:
+            raise KaffeError('Node (%s) expected to have 1 parent. Found %s.'%(self, len(self.parents)))
+        return self.parents[0]
         return None
 
     def __str__(self):
@@ -148,11 +153,12 @@ class DataReshaper(object):
         return data.transpose(self.map(data.ndim))
 
     def has_spatial_parent(self, node):
-        parent = node.get_any_parent()
-        if parent is None:
+        try:
+            parent = node.get_only_parent()
+            s = parent.output_shape
+            return (s[IDX_H]>1 or s[IDX_W]>1)
+        except KaffeError:
             return False
-        s = parent.output_shape
-        return (s[IDX_H]>1 or s[IDX_W]>1)
 
     def reshape(self, graph, replace=True):
         for node in graph.nodes:
@@ -162,7 +168,7 @@ class DataReshaper(object):
             if (node.kind==NodeKind.InnerProduct) and self.has_spatial_parent(node):
                 # The FC layer connected to the spatial layer needs to be
                 # re-wired to match the new spatial ordering.
-                in_shape = node.get_any_parent().output_shape
+                in_shape = node.get_only_parent().output_shape
                 fc_shape = data.shape
                 fc_order = self.map(2)
                 data = data.reshape((fc_shape[IDX_C_OUT], in_shape[IDX_C], in_shape[IDX_H], in_shape[IDX_W]))
