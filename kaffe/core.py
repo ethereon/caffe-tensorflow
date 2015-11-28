@@ -35,9 +35,10 @@ class Node(object):
         return '{:<20} {:<30} {:>20} {:>20}'.format(self.kind, self.name, data_shape, out_shape)
 
 class Graph(object):
-    def __init__(self, nodes=None):
+    def __init__(self, nodes=None, name=None):
         self.nodes = nodes or []
         self.node_lut = {node.name:node for node in self.nodes}
+        self.name = name
 
     def add_node(self, node):
         self.nodes.append(node)
@@ -217,8 +218,8 @@ class GraphBuilder(object):
         nodes = self.make_input_nodes()
         nodes += [self.make_node(layer) for layer in layers]
         nodes = self.remove_duplicates(nodes)
-        graph = Graph(nodes=nodes)
         inplace_replacements = {}
+        graph = Graph(nodes=nodes, name=self.params.name)
         for layer in layers:
             node = graph.get_node(layer.name)
             unique_parent = layer.bottom[0] if len(layer.bottom) else None
