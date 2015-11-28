@@ -4,7 +4,7 @@ import numpy as np
 from google.protobuf import text_format
 
 from . import caffepb
-from .types import *
+from .layers import *
 
 class Node(object):
     def __init__(self, name, kind, layer=None):
