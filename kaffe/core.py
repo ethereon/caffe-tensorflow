@@ -10,7 +10,7 @@ class Node(object):
     def __init__(self, name, kind, layer=None):
         self.name = name
         self.kind = kind
-        self.layer = layer
+        self.layer = LayerAdapter(layer, kind) if layer is not None else None
         self.parents = []
         self.children = []
         self.data = None
@@ -32,12 +32,23 @@ class Node(object):
         if len(self.parents)!=1:
             raise KaffeError('Node (%s) expected to have 1 parent. Found %s.'%(self, len(self.parents)))
         return self.parents[0]
+
+    @property
+    def parameters(self):
+        if self.layer is not None:
+            return self.layer.parameters
         return None
 
+    @property
+    def data_shape(self):
+        assert self.data
+        return self.data[IDX_WEIGHTS].shape
+
     def __str__(self):
-        data_shape = self.data[IDX_WEIGHTS].shape if self.data else '--'
-        out_shape = self.output_shape or '--'
-        return '{:<20} {:<30} {:>20} {:>20}'.format(self.kind, self.name, data_shape, out_shape)
+        return '[%s] %s'%(self.kind, self.name)
+
+    def __repr__(self):
+        return '%s (0x%x)'%(self.name, id(self))
 
 class Graph(object):
     def __init__(self, nodes=None, name=None):
@@ -92,8 +103,11 @@ class Graph(object):
     def __str__(self):
         hdr = '{:<20} {:<30} {:>20} {:>20}'.format('Type', 'Name', 'Param', 'Output')
         s = [hdr, '-'*94]
-        sorted_nodes = self.topologically_sorted()
-        s += ['%s'%node for node in sorted_nodes]
+        for node in self.topologically_sorted():
+            data_shape = node.data[IDX_WEIGHTS].shape if node.data else '--'
+            out_shape = node.output_shape or '--'
+            s.append('{:<20} {:<30} {:>20} {:>20}'.format(node.kind,
+                node.name, data_shape, out_shape))
         return '\n'.join(s)
 
 class DataInjector(object):
