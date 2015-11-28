@@ -218,30 +218,29 @@ class GraphBuilder(object):
         nodes = self.make_input_nodes()
         nodes += [self.make_node(layer) for layer in layers]
         nodes = self.remove_duplicates(nodes)
-        inplace_replacements = {}
         graph = Graph(nodes=nodes, name=self.params.name)
+        node_outputs = {}
         for layer in layers:
             node = graph.get_node(layer.name)
-            unique_parent = layer.bottom[0] if len(layer.bottom) else None
-            for child in layer.top:
-                if child==unique_parent:
-                    # This is an inplace node. Substitute the parent
-                    # for this node in all future connections.
-                    inplace_replacements[unique_parent] = node
-                    # Skip this edge (which would produce a cycle).
-                    continue
-                if child!=layer.name:
-                    if child not in graph:
-                        # This is an "implicit" child node: not explicitly
-                        # defined in the prototxt, but as a top for some layer.
-                        graph.add_node(Node(child, NodeKind.Implicit))
-                    node.add_child(graph.get_node(child))
-            for parent in layer.bottom:
-                assert parent!=layer.name
-                parent_node = inplace_replacements.get(parent)
+            for parent_name in layer.bottom:
+                assert parent_name!=layer.name
+                parent_node = node_outputs.get(parent_name)
                 if (parent_node is None) or (parent_node==node):
-                    parent_node = graph.get_node(parent)
+                    parent_node = graph.get_node(parent_name)
                 node.add_parent(parent_node)
+            for child_name in layer.top:
+                if child_name==layer.name:
+                    continue
+                if child_name in graph:
+                    # This is an "in-place operation" that overwrites an existing node.
+                    # This would create a cycle in the graph. We'll undo the in-placing
+                    # by substituting this node wherever the overwritten node is referenced.
+                    node_outputs[child_name] = node
+                else:
+                    # This is an "implicit" child node: not explicitly
+                    # defined in the prototxt, but as a top (output) for some layer.
+                    graph.add_node(Node(child_name, NodeKind.Implicit))
+                    node.add_child(graph.get_node(child_name))
         graph.compute_output_shapes()
         if self.data_path is not None:
             DataInjector(self.def_path, self.data_path).inject(graph)
