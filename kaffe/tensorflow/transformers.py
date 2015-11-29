@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from . import network
 from ..base import *
 from ..core import GraphBuilder, DataReshaper, NodeMapper
 
@@ -47,6 +48,8 @@ class TensorFlowMapper(NodeMapper):
         kernel_params = node.layer.kernel_parameters
         input_shape = node.get_only_parent().output_shape
         padding = get_padding_type(kernel_params, input_shape, node.output_shape)
+        # Only emit the padding if it's not the default value.
+        padding = {'padding':padding} if padding!=network.DEFAULT_PADDING else {}
         return (kernel_params, padding)
 
     def relu_adapted_node(self, node, *args, **kwargs):
@@ -67,7 +70,7 @@ class TensorFlowMapper(NodeMapper):
                                       c_o,
                                       kernel_params.stride_h,
                                       kernel_params.stride_w,
-                                      padding)
+                                      **padding)
 
     def map_relu(self, node):
         return TensorFlowNode('relu')
@@ -87,7 +90,7 @@ class TensorFlowMapper(NodeMapper):
                               kernel_params.kernel_w,
                               kernel_params.stride_h,
                               kernel_params.stride_w,
-                              padding)
+                              **padding)
 
     def map_inner_product(self, node):
         #TODO: Axis

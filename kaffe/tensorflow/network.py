@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+DEFAULT_PADDING = 'SAME'
+
 def layer(op):
     def layer_decorated(self, *args, **kwargs):
         # Automatically set a name if not provided.
@@ -57,7 +59,7 @@ class Network(object):
         assert padding in ('SAME', 'VALID')
 
     @layer
-    def conv(self, input, k_h, k_w, c_o, s_h, s_w, padding, name, relu=True):
+    def conv(self, input, k_h, k_w, c_o, s_h, s_w, name, relu=True, padding=DEFAULT_PADDING):
         self.validate_padding(padding)
         c_i = input.get_shape()[-1] # cur_c_i = prev_c_o
         with tf.variable_scope(name) as scope:
@@ -74,7 +76,7 @@ class Network(object):
         return tf.nn.relu(input, name=name)
 
     @layer
-    def max_pool(self, input, k_h, k_w, s_h, s_w, padding, name):
+    def max_pool(self, input, k_h, k_w, s_h, s_w, name, padding=DEFAULT_PADDING):
         self.validate_padding(padding)
         return tf.nn.max_pool(input,
                               ksize=[1, k_h, k_w, 1],
@@ -83,7 +85,7 @@ class Network(object):
                               name=name)
 
     @layer
-    def avg_pool(self, input, k_h, k_w, s_h, s_w, padding, name):
+    def avg_pool(self, input, k_h, k_w, s_h, s_w, name, padding=DEFAULT_PADDING):
         self.validate_padding(padding)
         return tf.nn.avg_pool(input,
                               ksize=[1, k_h, k_w, 1],
@@ -92,7 +94,7 @@ class Network(object):
                               name=name)
 
     @layer
-    def normalize_local_response(self, input, radius, alpha, beta, name, bias=1.0):
+    def lrn(self, input, radius, alpha, beta, name, bias=1.0):
         return tf.nn.local_response_normalization(input,
                                                   depth_radius=radius,
                                                   alpha=alpha,
