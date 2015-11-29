@@ -192,7 +192,7 @@ class TensorFlowTransformer(object):
 
     def transform_data(self):    
         # Cache the graph source before mutating it.
-        self.convert_source()        
+        self.transform_source()        
         mapping = {4 : (2, 3, 1, 0), # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
                    2 : (1, 0)}       # (c_o, c_i) -> (c_i, c_o)
         DataReshaper(mapping).reshape(self.graph)
