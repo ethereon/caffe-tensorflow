@@ -110,7 +110,7 @@ class TensorFlowMapper(NodeMapper):
         # just scales by alpha (as does Krizhevsky's paper).
         # We'll account for that here.
         alpha = params.alpha/float(params.local_size)
-        return TensorFlowNode('normalize_local_response',
+        return TensorFlowNode('lrn',
                               int(params.local_size/2),
                               alpha,
                               params.beta)
