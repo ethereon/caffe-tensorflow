@@ -308,7 +308,7 @@ class GraphBuilder(object):
             DataInjector(self.def_path, self.data_path).inject(graph)
         return graph
 
-class NodeMapper(object):
+class NodeMapper(NodeDispatch):
     def __init__(self, graph):
         self.graph = graph
 
@@ -346,26 +346,12 @@ class NodeMapper(object):
         return [self.map_node(node) for node in chain]
 
     def map_node(self, node):
-        name = self.get_mapper_name(node)
-        if hasattr(self, name):
-            map_func = getattr(self, name)
-            mapped_node = map_func(node)
-            assert mapped_node is not None
-            if self.attach_node(node):
-                mapped_node.node = node
-            return mapped_node
-        raise KaffeError('No mapper found for node: %s (expected: %s)'%(node, name))
-
-    def get_mapper_name(self, node):
-        name = node.kind
-        if len(name)<=4:
-            # A catch-all for things like ReLU and tanh
-            name = name.lower()
-        else:
-            # Convert from CamelCase to under_scored
-            name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-            name = re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
-        return 'map_'+name
+        map_func = self.get_handler(node.kind, 'map')
+        mapped_node = map_func(node)
+        assert mapped_node is not None
+        if self.attach_node(node):
+            mapped_node.node = node
+        return mapped_node
 
     def commit(self, mapped_chains):
         raise NotImplementedError('Must be implemented by subclass.')
