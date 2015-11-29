@@ -22,17 +22,17 @@ Convert the model:
 Inference:
 
 ```python
-    # Import the converted model's class
-    from mynet import MyNet
+# Import the converted model's class
+from mynet import MyNet
 
-    # Create an instance, passing in the input data
-    net = MyNet({'data':my_input_data})
+# Create an instance, passing in the input data
+net = MyNet({'data':my_input_data})
 
-    with tf.Session() as sesh:
-        # Load the data
-        net.load('mynet.npy', sesh)
-        # Forward pass
-        output = sesh.run(net.get_output(), ...)
+with tf.Session() as sesh:
+    # Load the data
+    net.load('mynet.npy', sesh)
+    # Forward pass
+    output = sesh.run(net.get_output(), ...)
 ```
 
 See `test.py` for a functioning example. It verifies the sample models (under `examples/`) against the ImageNet validation set.
