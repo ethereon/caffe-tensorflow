@@ -173,7 +173,7 @@ class TensorFlowEmitter(object):
         return s
 
 
-class TensorFlowConverter(object):
+class TensorFlowTransformer(object):
     def __init__(self, def_path, data_path, verbose=True):
         self.data_reshaped = False
         self.verbose = verbose
@@ -190,7 +190,7 @@ class TensorFlowConverter(object):
         if self.verbose:
             print(self.graph)
 
-    def convert_data(self):    
+    def transform_data(self):    
         # Cache the graph source before mutating it.
         self.convert_source()        
         mapping = {4 : (2, 3, 1, 0), # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
@@ -198,20 +198,10 @@ class TensorFlowConverter(object):
         DataReshaper(mapping).reshape(self.graph)
         return {node.name:node.data for node in self.graph.nodes if node.data}
 
-    def convert_source(self):
+    def transform_source(self):
         if self.source is None:
             mapper = TensorFlowMapper(self.graph)
             chains = mapper.map()
             emitter = TensorFlowEmitter()
             self.source = emitter.emit(self.graph.name, chains)
         return self.source
-
-class TensorFlowLoader(object):
-    def __init__(self, params_path):
-        self.params = np.load(params_path).item()
-
-    def load(self, sesh):
-        for key in self.params:
-            with tf.variable_scope(key, reuse=True):
-                for subkey, data in zip(('weights', 'biases'), self.params[key]):
-                    sesh.run(tf.get_variable(subkey).assign(data))

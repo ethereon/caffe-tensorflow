@@ -5,9 +5,7 @@ import sys
 import cv2
 import numpy as np
 import tensorflow as tf
-
 import examples
-from kaffe.tensorflow import TensorFlowLoader
 
 BATCH_SIZE      = 25
 PRE_CROP_SIZE   = 256
@@ -51,18 +49,18 @@ class ImageNet(object):
     def __len__(self):
         return len(self.labels)
 
-def test_imagenet(Net, params_path, val_path, data_path, top_k=5):
+def test_imagenet(Net, data_path, val_path, images_path, top_k=5):
     test_data   = tf.placeholder(tf.float32, shape=(BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
     test_labels = tf.placeholder(tf.int32, shape=(BATCH_SIZE,))
-    probs       = Net({'data':test_data}).get_output()
+    net         = Net({'data':test_data})
+    probs       = net.get_output()
     top_k_op    = tf.nn.in_top_k(probs, test_labels, top_k)
-    imagenet    = ImageNet(val_path, data_path)
+    imagenet    = ImageNet(val_path, images_path)
     correct     = 0
     count       = 0
     total       = len(imagenet)
     with tf.Session() as sesh:
-        caffe_loader = TensorFlowLoader(params_path)
-        caffe_loader.load(sesh)
+        net.load(data_path, sesh)
         for idx, (images, labels) in enumerate(imagenet.batches(BATCH_SIZE)):
             correct += np.sum(sesh.run(top_k_op, feed_dict={test_data:images, test_labels:labels}))
             count += len(images)
