@@ -5,10 +5,10 @@ class GoogleNet(Network):
         (self.feed('data')
              .conv(7, 7, 64, 2, 2, 'SAME', name='conv1_7x7_s2')
              .max_pool(3, 3, 2, 2, 'SAME', name='pool1_3x3_s2')
-             .normalize_local_response(2, 0.0001, 0.75, name='pool1_norm1')
+             .normalize_local_response(2, 2e-05, 0.75, name='pool1_norm1')
              .conv(1, 1, 64, 1, 1, 'SAME', name='conv2_3x3_reduce')
              .conv(3, 3, 192, 1, 1, 'SAME', name='conv2_3x3')
-             .normalize_local_response(2, 0.0001, 0.75, name='conv2_norm2')
+             .normalize_local_response(2, 2e-05, 0.75, name='conv2_norm2')
              .max_pool(3, 3, 2, 2, 'SAME', name='pool2_3x3_s2')
              .conv(1, 1, 64, 1, 1, 'SAME', name='inception_3a_1x1'))
 

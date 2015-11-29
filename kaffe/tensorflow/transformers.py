@@ -103,9 +103,13 @@ class TensorFlowMapper(NodeMapper):
         # The window size must be an odd value. For a window
         # size of (2*n+1), TensorFlow defines depth_radius = n.
         assert (params.local_size%2==1)
+        # Caffe scales by (alpha/(2*n+1)), whereas TensorFlow
+        # just scales by alpha (as does Krizhevsky's paper).
+        # We'll account for that here.
+        alpha = params.alpha/float(params.local_size)
         return TensorFlowNode('normalize_local_response',
                               int(params.local_size/2),
-                              params.alpha,
+                              alpha,
                               params.beta)
 
     def map_concat(self, node):
