@@ -64,7 +64,7 @@ class TensorFlowMapper(NodeMapper):
         (kernel_params, kwargs) = self.get_kernel_params(node)
         group = node.parameters.group
         if group!=1:
-            kwargs['group'] = node.parameters.group
+            kwargs['group'] = group
         assert kernel_params.kernel_h==h
         assert kernel_params.kernel_w==w
         return self.relu_adapted_node(node,
