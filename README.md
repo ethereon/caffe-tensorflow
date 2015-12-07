@@ -45,6 +45,8 @@ The following converted models have been verified on the ILSVRC2012 validation s
 |:-----------------------------------------------|---------------:|
 | [VGG 16](http://arxiv.org/abs/1409.1556)       |         89.88% |
 | [GoogLeNet](http://arxiv.org/abs/1409.4842)    |         89.06% |
+| [CaffeNet](http://arxiv.org/abs/1408.5093)     |         79.93% |
+| [AlexNet](http://goo.gl/3BilWd)                |         79.84% |
 
 ## Notes
 
