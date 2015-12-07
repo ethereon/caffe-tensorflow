@@ -61,7 +61,10 @@ class TensorFlowMapper(NodeMapper):
 
     def map_convolution(self, node):
         (c_o, c_i, h, w) = node.data_shape
-        (kernel_params, padding) = self.get_kernel_params(node)
+        (kernel_params, kwargs) = self.get_kernel_params(node)
+        group = node.parameters.group
+        if group!=1:
+            kwargs['group'] = node.parameters.group
         assert kernel_params.kernel_h==h
         assert kernel_params.kernel_w==w
         return self.relu_adapted_node(node,
@@ -71,7 +74,7 @@ class TensorFlowMapper(NodeMapper):
                                       c_o,
                                       kernel_params.stride_h,
                                       kernel_params.stride_w,
-                                      **padding)
+                                      **kwargs)
 
     def map_relu(self, node):
         return TensorFlowNode('relu')
