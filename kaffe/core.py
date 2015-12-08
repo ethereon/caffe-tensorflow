@@ -142,10 +142,14 @@ class DataInjector(object):
     def transform_data(self, layer):
         transformed = []
         for idx, blob in enumerate(layer.blobs):
-            c_o  = blob.num
-            c_i  = blob.channels
-            h    = blob.height
-            w    = blob.width
+            if len(blob.shape.dim):
+                dims = blob.shape.dim
+                c_o, c_i, h, w = map(int, [1]*(4-len(dims))+list(dims))
+            else:
+                c_o  = blob.num
+                c_i  = blob.channels
+                h    = blob.height
+                w    = blob.width
             data = np.squeeze(np.array(blob.data, dtype=np.float32).reshape(c_o, c_i, h, w))
             transformed.append(data)
         return transformed
