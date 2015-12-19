@@ -324,6 +324,8 @@ class NodeMapper(NodeDispatch):
         # Remove input nodes - we'll handle them separately.
         input_nodes = self.graph.get_input_nodes()
         nodes = [t for t in nodes if t not in input_nodes]
+        # Remove implicit nodes.
+        nodes = [t for t in nodes if t.kind!=NodeKind.Implicit]
         # Decompose DAG into chains.
         chains = []
         for node in nodes:
