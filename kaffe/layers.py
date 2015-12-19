@@ -28,7 +28,7 @@ LAYER_DESCRIPTORS =  {
     'InfogainLoss'              : shape_scalar,
     'InnerProduct'              : shape_inner_product,
     'LRN'                       : shape_input,
-    'MemoryData'                : shape_identity,
+    'MemoryData'                : shape_mem_data,
     'MultinomialLogisticLoss'   : shape_scalar,
     'MVN'                       : shape_not_implemented,
     'Pooling'                   : shape_pool,
@@ -109,6 +109,9 @@ class LayerAdapter(NodeDispatch):
 
     def parameters_lrn(self):
         return self.layer.lrn_param
+
+    def parameters_memory_data(self):
+        return self.layer.memory_data_param
 
     @property
     def parameters(self):

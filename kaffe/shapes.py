@@ -43,6 +43,14 @@ def shape_identity(node):
     raise KaffeError('Cannot determine dimensions of data layer.\n'
                      'See comments in function shape_identity for more info.')
 
+
+def shape_mem_data(node):
+    params = node.parameters
+    return make_shape(params.batch_size,
+                      params.channels,
+                      params.height,
+                      params.width)
+
 def shape_concat(node):
     axis = node.layer.parameters.axis
     output_shape = None
