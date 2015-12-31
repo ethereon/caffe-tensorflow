@@ -150,7 +150,7 @@ class DataInjector(object):
                 c_i  = blob.channels
                 h    = blob.height
                 w    = blob.width
-            data = np.squeeze(np.array(blob.data, dtype=np.float32).reshape(c_o, c_i, h, w))
+            data = np.array(blob.data, dtype=np.float32).reshape(c_o, c_i, h, w)
             transformed.append(data)
         return transformed
 
