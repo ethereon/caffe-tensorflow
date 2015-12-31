@@ -156,7 +156,10 @@ class DataInjector(object):
 
     def inject(self, graph):
         for layer_name, data in self.params:
-            graph.get_node(layer_name).data = data
+            if layer_name in graph:
+                graph.get_node(layer_name).data = data
+            else:
+                print('Ignoring parameters for non-existent layer: %s'%layer_name)
 
 class DataReshaper(object):
     def __init__(self, mapping):
