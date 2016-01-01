@@ -115,6 +115,7 @@ class DataInjector(object):
     def __init__(self, def_path, data_path):
         self.def_path = def_path
         self.data_path = data_path
+        self.did_use_pb = False
         self.load()
 
     def load(self):
@@ -138,6 +139,7 @@ class DataInjector(object):
         pair = lambda layer: (layer.name, self.transform_data(layer))
         layers = data.layers or data.layer
         self.params = [pair(layer) for layer in layers if layer.blobs]
+        self.did_use_pb = True
 
     def transform_data(self, layer):
         transformed = []
@@ -154,10 +156,27 @@ class DataInjector(object):
             transformed.append(data)
         return transformed
 
+    def adjust_parameters(self, node, data):        
+        if not self.did_use_pb:
+            return data
+        # When using the protobuf-backend, each parameter initially has four dimensions.
+        # In certain cases (like FC layers), we want to eliminate the singleton dimensions.
+        # This implementation takes care of the common cases. However, it does leave the
+        # potential for future issues.
+        # The Caffe-backend does not suffer from this problem.
+        data = list(data)
+        squeeze_indices = [1] # Squeeze biases.
+        if node.kind==NodeKind.InnerProduct:
+            squeeze_indices.append(0) # Squeeze FC.
+        for idx in squeeze_indices:
+            data[idx] = np.squeeze(data[idx])
+        return data
+
     def inject(self, graph):
         for layer_name, data in self.params:
             if layer_name in graph:
-                graph.get_node(layer_name).data = data
+                node = graph.get_node(layer_name)
+                node.data = self.adjust_parameters(node, data)
             else:
                 print('Ignoring parameters for non-existent layer: %s'%layer_name)
 
