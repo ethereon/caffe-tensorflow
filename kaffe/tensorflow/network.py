@@ -25,9 +25,10 @@ def layer(op):
     return layer_decorated
 
 class Network(object):
-    def __init__(self, inputs):
+    def __init__(self, inputs, trainable=True):
         self.inputs = []
         self.layers = dict(inputs)
+        self.trainable = trainable
         self.setup()
 
     def setup(self):
@@ -61,7 +62,7 @@ class Network(object):
         return '%s_%d'%(prefix, id)
 
     def make_var(self, name, shape):
-        return tf.get_variable(name, shape)
+        return tf.get_variable(name, shape, trainable=self.trainable)
 
     def validate_padding(self, padding):
         assert padding in ('SAME', 'VALID')
