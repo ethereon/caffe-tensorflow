@@ -113,6 +113,9 @@ class LayerAdapter(NodeDispatch):
     def parameters_memory_data(self):
         return self.layer.memory_data_param
 
+    def parameters_dropout(self):
+        return self.layer.dropout_param
+
     @property
     def parameters(self):
         handler = self.get_handler(self.kind, 'parameters')

@@ -57,7 +57,7 @@ class Network(object):
     def get_output(self):
         return self.inputs[-1]
 
-    def get_unique_name(self, prefix):        
+    def get_unique_name(self, prefix):
         id = sum(t.startswith(prefix) for t,_ in self.layers.items())+1
         return '%s_%d'%(prefix, id)
 
@@ -72,7 +72,7 @@ class Network(object):
         self.validate_padding(padding)
         c_i = input.get_shape()[-1]
         assert c_i%group==0
-        assert c_o%group==0        
+        assert c_o%group==0
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
         with tf.variable_scope(name) as scope:
             kernel = self.make_var('weights', shape=[k_h, k_w, c_i/group, c_o])
@@ -83,7 +83,7 @@ class Network(object):
                 input_groups = tf.split(3, group, input)
                 kernel_groups = tf.split(3, group, kernel)
                 output_groups = [convolve(i, k) for i,k in zip(input_groups, kernel_groups)]
-                conv = tf.concat(3, output_groups)                
+                conv = tf.concat(3, output_groups)
             if relu:
                 bias = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape().as_list())
                 return tf.nn.relu(bias, name=scope.name)
@@ -145,3 +145,6 @@ class Network(object):
     def softmax(self, input, name):
         return tf.nn.softmax(input, name)
 
+    @layer
+    def dropout(self, input, keep_prob, name):
+        return tf.nn.dropout(input, keep_prob, name=name)
