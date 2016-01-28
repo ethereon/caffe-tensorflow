@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import sys
 
 DEFAULT_PADDING = 'SAME'
 
@@ -39,7 +40,12 @@ class Network(object):
         for key in data_dict:
             with tf.variable_scope(key, reuse=True):
                 for subkey, data in zip(('weights', 'biases'), data_dict[key]):
-                    session.run(tf.get_variable(subkey).assign(data))
+                    try:
+                        var = tf.get_variable(subkey)
+                    except:
+                        print >> sys.stderr, key + '/' + subkey, 'ignored'
+                    else:
+                        session.run(var.assign(data))
 
     def feed(self, *args):
         assert len(args)!=0
