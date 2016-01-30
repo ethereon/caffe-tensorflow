@@ -17,7 +17,7 @@ class TensorFlowNode(object):
         return '%s=%s'%(key, self.format(value))
 
     def emit(self):
-        args = map(self.format, self.args)        
+        args = map(self.format, self.args)
         if self.kwargs:
             args += [self.pair(k, v) for k,v in self.kwargs]
         args.append(self.pair('name', self.node.name))
@@ -123,6 +123,9 @@ class TensorFlowMapper(NodeMapper):
         axis = (2, 3, 1, 0)[node.parameters.axis]
         return TensorFlowNode('concat', axis)
 
+    def map_dropout(self, node):
+        return TensorFlowNode('dropout', node.parameters.dropout_ratio)
+
     def commit(self, chains):
         return chains
 
@@ -178,14 +181,15 @@ class TensorFlowEmitter(object):
 
 
 class TensorFlowTransformer(object):
-    def __init__(self, def_path, data_path, verbose=True):
+    def __init__(self, def_path, data_path, verbose=True, phase='test'):
         self.data_reshaped = False
         self.verbose = verbose
-        self.load(def_path, data_path)
+        self.phase = phase
+        self.load(def_path, data_path, phase)
         self.source = None
 
-    def load(self, def_path, data_path):
-        self.graph = GraphBuilder(def_path, data_path).build()
+    def load(self, def_path, data_path, phase):
+        self.graph = GraphBuilder(def_path, data_path, phase).build()
         for node in self.graph.nodes:
             # Slashes are used for scoping in TensorFlow. Replace slashes
             # in node names with underscores.
@@ -194,9 +198,9 @@ class TensorFlowTransformer(object):
         if self.verbose:
             print(self.graph)
 
-    def transform_data(self):    
+    def transform_data(self):
         # Cache the graph source before mutating it.
-        self.transform_source()        
+        self.transform_source()
         mapping = {4 : (2, 3, 1, 0), # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
                    2 : (1, 0)}       # (c_o, c_i) -> (c_i, c_o)
         DataReshaper(mapping).reshape(self.graph)
