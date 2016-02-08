@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-import sys
 
 DEFAULT_PADDING = 'SAME'
 
@@ -35,17 +34,17 @@ class Network(object):
     def setup(self):
         raise NotImplementedError('Must be subclassed.')
 
-    def load(self, data_path, session):
+    def load(self, data_path, session, ignore_missing=False):
         data_dict = np.load(data_path).item()
         for key in data_dict:
             with tf.variable_scope(key, reuse=True):
                 for subkey, data in zip(('weights', 'biases'), data_dict[key]):
                     try:
                         var = tf.get_variable(subkey)
-                    except:
-                        print >> sys.stderr, key + '/' + subkey, 'ignored'
-                    else:
                         session.run(var.assign(data))
+                    except ValueError:
+                        if not ignore_missing:
+                            raise
 
     def feed(self, *args):
         assert len(args)!=0
