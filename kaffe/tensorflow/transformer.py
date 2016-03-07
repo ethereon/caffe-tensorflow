@@ -196,7 +196,7 @@ class TensorFlowTransformer(object):
             # (Caffe's GoogLeNet implementation uses slashes)
             node.name = node.name.replace('/', '_')
         if self.verbose:
-            print(self.graph)
+            print_stderr(self.graph)
 
     def transform_data(self):
         # Cache the graph source before mutating it.

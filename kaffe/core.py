@@ -3,8 +3,29 @@ import sys
 import numpy as np
 from google.protobuf import text_format
 
-from . import caffepb
 from .layers import *
+from .core import print_stderr
+
+try:
+    import caffe
+    PYCAFFE_AVAILABLE = True
+except ImportError:
+    import caffepb
+    PYCAFFE_AVAILABLE = False
+    print_stderr('WARNING: PyCaffe not found!')
+    print_stderr('Falling back to protocol buffer implementation.')
+    print_stderr('This may take a couple of minutes.')
+
+if PYCAFFE_AVAILABLE:
+    # Use the protobuf code from the imported distribution.
+    # This way, Caffe variants with custom layers will work.
+    try:
+        sys.path.append(os.path.join(os.path.dirname(caffe.__file__), 'proto/'))
+        import caffe_pb2 as caffepb
+    except ImportError:
+        import caffepb
+        print_stderr('Failed to import dist protobuf code. Using failsafe.')
+        print_stderr('Custom layers might not work.')
 
 class Node(object):
     def __init__(self, name, kind, layer=None):
@@ -119,16 +140,12 @@ class DataInjector(object):
         self.load()
 
     def load(self):
-        try:
+        if PYCAFFE_AVAILABLE:
             self.load_using_caffe()
-        except ImportError:
-            print('WARNING: PyCaffe not found!')
-            print('Falling back to protocol buffer implementation.')
-            print('This may take a couple of minutes.')
+        else:
             self.load_using_pb()
 
     def load_using_caffe(self):
-        import caffe
         net = caffe.Net(self.def_path, self.data_path, caffe.TEST)
         data = lambda blob: blob.data
         self.params = [(k, map(data, v)) for k,v in net.params.items()]
@@ -156,7 +173,7 @@ class DataInjector(object):
             transformed.append(data)
         return transformed
 
-    def adjust_parameters(self, node, data):        
+    def adjust_parameters(self, node, data):
         if not self.did_use_pb:
             return data
         # When using the protobuf-backend, each parameter initially has four dimensions.
@@ -178,7 +195,7 @@ class DataInjector(object):
                 node = graph.get_node(layer_name)
                 node.data = self.adjust_parameters(node, data)
             else:
-                print('Ignoring parameters for non-existent layer: %s'%layer_name)
+                print_stderr('Ignoring parameters for non-existent layer: %s'%layer_name)
 
 class DataReshaper(object):
     def __init__(self, mapping):

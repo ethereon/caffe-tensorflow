@@ -1,3 +1,5 @@
+import sys
+
 class KaffeError(Exception):
     pass
 
@@ -13,3 +15,5 @@ IDX_C_IN     = 1
 IDX_H        = 2
 IDX_W        = 3
 
+def print_stderr(msg):
+    sys.stderr.write(msg+'\n')
