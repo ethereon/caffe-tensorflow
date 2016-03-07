@@ -262,7 +262,7 @@ class GraphBuilder(object):
     def make_node(self, layer):
         kind = NodeKind.map_raw_kind(layer.type)
         if kind is None:
-            raise KaffeError('Unknown layer type encountered: %s'%kind)
+            raise KaffeError('Unknown layer type encountered: %s'%layer.type)
         return Node(layer.name, kind, layer=layer)
 
     def make_input_nodes(self):
