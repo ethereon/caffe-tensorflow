@@ -14,7 +14,8 @@ except ImportError:
     PYCAFFE_AVAILABLE = False
     print_stderr('WARNING: PyCaffe not found!')
     print_stderr('Falling back to protocol buffer implementation.')
-    print_stderr('This may take a couple of minutes.')
+    print_stderr('* Conversions will be drastically slower.')
+    print_stderr('* This backend is UNTESTED!')
 
 if PYCAFFE_AVAILABLE:
     # Use the protobuf code from the imported distribution.
