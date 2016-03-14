@@ -16,4 +16,4 @@ IDX_H        = 2
 IDX_W        = 3
 
 def print_stderr(msg):
-    sys.stderr.write(msg+'\n')
+    sys.stderr.write('%s\n'%msg)
