@@ -24,16 +24,22 @@ def get_strided_kernel_output_shape(node, round_func):
 def shape_not_implemented(node):
     raise NotImplementedError
 
-def shape_input(node):
+def shape_identity(node):
     assert len(node.parents)>0
     return node.parents[0].output_shape
 
 def shape_scalar(node):
     return make_shape(1, 1, 1, 1)
 
-def shape_identity(node):
+def shape_data(node):
     if node.output_shape:
+        # Old-style input specification
         return node.output_shape
+    try:
+        # New-style input specification
+        return map(int, node.parameters.shape[0].dim)
+    except:
+        pass
     # We most likely have a data layer on our hands. The problem is,
     # Caffe infers the dimensions of the data from the source (eg: LMDB).
     # We want to avoid reading datasets here. Fail for now.
@@ -41,7 +47,7 @@ def shape_identity(node):
     # Caffe's "input" layer (as is usually used in the "deploy" version).
     # TODO: Find a better solution for this.
     raise KaffeError('Cannot determine dimensions of data layer.\n'
-                     'See comments in function shape_identity for more info.')
+                     'See comments in function shape_data for more info.')
 
 
 def shape_mem_data(node):

@@ -283,6 +283,9 @@ class GraphBuilder(object):
         return Node(layer.name, kind, layer=layer)
 
     def make_input_nodes(self):
+        # This method is for old-style inputs, where the input specification
+        # was not treated as a first-class layer in the prototext.
+        # Newer models use the "Input layer" type.
         nodes = [Node(name, NodeKind.Data) for name in self.params.input]
         if len(nodes):
             input_dim = map(int, self.params.input_dim)
