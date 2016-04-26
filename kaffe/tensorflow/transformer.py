@@ -60,8 +60,12 @@ class TensorFlowMapper(NodeMapper):
         return TensorFlowNode(*args, **kwargs)
 
     def map_convolution(self, node):
-        (c_o, c_i, h, w) = node.data_shape
         (kernel_params, kwargs) = self.get_kernel_params(node)
+        #(c_o, c_i, h, w) = node.data_shape
+        h = kernel_params.kernel_h
+        w = kernel_params.kernel_w
+        c_o = node.output_shape[1]
+        c_i = node.parents[0].output_shape[1]
         group = node.parameters.group
         if group!=1:
             kwargs['group'] = group
