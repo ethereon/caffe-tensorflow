@@ -13,13 +13,26 @@ The output consists of two files:
 1. A data file (in NumPy's native format) containing the model's learned parameters.
 2. A Python class that constructs the model's graph.
 
-### Example
+### LeNet Example
 
-Convert the model:
+This example showns you how to finetune code from the [Caffe MNIST tutorial](http://caffe.berkeleyvision.org/gathered/examples/mnist.html) using Tensorflow.
+Convert a prototxt model to tensorflow code:
 
-    ./convert.py deploy.prototxt net.caffemodel mynet.npy mynet.py
+    $ ./convert.py examples/mnist/lenet.prototxt
 
-Inference:
+This produces tensorflow code for the LeNet network in mynet.py. The coded can be imported as described below in the Inference section. Caffe-tensorflow also lets you convert .caffemodel weight files to .npy files that can be directly loaded from tensorflow:
+
+    $ ./convert.py examples/mnist/lenet.prototxt --data_path examples/mnist/lenet_iter_10000.caffemodel
+    
+The above command will generate a weight file named mynet.npy in addition to the mynet.py code.
+
+#### Inference:
+
+Once you have generated both the code weight files for LeNet, you can finetune LeNet using tensorflow with
+
+    $ ./examples/mnist/run_mnist.py
+    
+At a high level, run_mnist works as follows:
 
 ```python
 # Import the converted model's class
@@ -34,6 +47,8 @@ with tf.Session() as sesh:
     # Forward pass
     output = sesh.run(net.get_output(), ...)
 ```
+
+### ImageNet example
 
 See `test.py` for a functioning example. It verifies the sample models (under `examples/`) against the ImageNet validation set.
 
@@ -54,7 +69,7 @@ The following converted models have been verified on the ILSVRC2012 validation s
 
 - It appears that Caffe and TensorFlow cannot be concurrently invoked (CUDA conflicts - even with `set_mode_cpu`). This makes it a two-stage process: first extract the parameters with `convert.py`, then import it into TensorFlow.
 
-- Caffe is not strictly required. If PyCaffe is found in your `PYTHONPATH`, it will be used. Otherwise, a fallback will be used. However, the fallback uses the pure Python-based implementation of protobuf, which is astoundingly slow (~1.5 minutes to parse the VGG16 parameters). The experimental CPP protobuf backend doesn't particularly help here, since it runs into the file size limit (Caffe gets around this by overriding this limit in C++). A cleaner solution here would be to implement the loader as a C++ module.
+- Caffe is not strictly required. If PyCaffe is found in your `PYTHONPATH`, and the `USE_PYCAFFE` environment variable is set, it will be used. Otherwise, a fallback will be used. However, the fallback uses the pure Python-based implementation of protobuf, which is astoundingly slow (~1.5 minutes to parse the VGG16 parameters). The experimental CPP protobuf backend doesn't particularly help here, since it runs into the file size limit (Caffe gets around this by overriding this limit in C++). A cleaner solution here would be to implement the loader as a C++ module.
 
 - Only a subset of Caffe layers and accompanying parameters are currently supported. 
 
