@@ -8,14 +8,14 @@ from kaffe import KaffeError
 from kaffe.tensorflow import TensorFlowTransformer
 
 def convert(def_path,
-            data_path=None,
+            caffemodel=None,
             data_output_path='mynet.npy',
             code_output_path='mynet.py',
             phase='test'):
     try:
-        transformer = TensorFlowTransformer(def_path, data_path, phase=phase)
+        transformer = TensorFlowTransformer(def_path, caffemodel, phase=phase)
         print('Converting data...')
-        if data_path is not None:
+        if caffemodel is not None:
             data = transformer.transform_data()
             print('Saving data...')
             with open(data_output_path, 'wb') as data_out:
@@ -31,7 +31,7 @@ def convert(def_path,
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('def_path', help='Model definition (.prototxt) path')
-    parser.add_argument('--data_path', default=None, help='Model data (.caffemodel) path')
+    parser.add_argument('--caffemodel', default=None, help='Model data (.caffemodel) path')
     parser.add_argument('--data_output_path', default='mynet.npy', help='Converted data output path')
     parser.add_argument('--code_output_path', default='mynet.py',
                         help='Save generated source to this path')
@@ -39,7 +39,7 @@ def main():
                         help='The phase to convert: test (default) or train')
     args = parser.parse_args()
 
-    convert(args.def_path, args.data_path, args.data_output_path, args.code_output_path, args.phase)
+    convert(args.def_path, args.caffemodel, args.data_output_path, args.code_output_path, args.phase)
 
 if __name__ == '__main__':
     main()

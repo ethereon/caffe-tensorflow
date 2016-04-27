@@ -22,7 +22,7 @@ First, you can convert a prototxt model to tensorflow code:
 
 This produces tensorflow code for the LeNet network in mynet.py. The code can be imported as described below in the Inference section. Caffe-tensorflow also lets you convert .caffemodel weight files to .npy files that can be directly loaded from tensorflow:
 
-    $ ./convert.py examples/mnist/lenet.prototxt --data_path examples/mnist/lenet_iter_10000.caffemodel
+    $ ./convert.py examples/mnist/lenet.prototxt --caffemodel examples/mnist/lenet_iter_10000.caffemodel
     
 The above command will generate a weight file named mynet.npy in addition to the mynet.py code.
 
@@ -30,9 +30,9 @@ The above command will generate a weight file named mynet.npy in addition to the
 
 Once you have generated both the code weight files for LeNet, you can finetune LeNet using tensorflow with
 
-    $ ./examples/mnist/run_mnist.py
+    $ ./examples/mnist/finetune_mnist.py
     
-At a high level, run_mnist.py works as follows:
+At a high level, finetune_mnist.py works as follows:
 
 ```python
 # Import the converted model's class
