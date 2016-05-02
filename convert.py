@@ -7,6 +7,7 @@ import argparse
 from kaffe import KaffeError
 from kaffe.tensorflow import TensorFlowTransformer
 
+
 def convert(def_path,
             caffemodel=None,
             data_output_path='mynet.npy',
@@ -25,21 +26,29 @@ def convert(def_path,
             src_out.write(transformer.transform_source())
         print('Done.')
     except KaffeError as err:
-        print('Error encountered: %s'%err)
+        print('Error encountered: %s' % err)
         exit(-1)
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('def_path', help='Model definition (.prototxt) path')
     parser.add_argument('--caffemodel', default=None, help='Model data (.caffemodel) path')
-    parser.add_argument('--data_output_path', default='mynet.npy', help='Converted data output path')
-    parser.add_argument('--code_output_path', default='mynet.py',
+    parser.add_argument('--data_output_path',
+                        default='mynet.npy',
+                        help='Converted data output path')
+    parser.add_argument('--code_output_path',
+                        default='mynet.py',
                         help='Save generated source to this path')
-    parser.add_argument('-p', '--phase', default='test',
+    parser.add_argument('-p',
+                        '--phase',
+                        default='test',
                         help='The phase to convert: test (default) or train')
     args = parser.parse_args()
 
-    convert(args.def_path, args.caffemodel, args.data_output_path, args.code_output_path, args.phase)
+    convert(args.def_path, args.caffemodel, args.data_output_path, args.code_output_path,
+            args.phase)
+
 
 if __name__ == '__main__':
     main()

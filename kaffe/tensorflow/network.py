@@ -3,14 +3,16 @@ import tensorflow as tf
 
 DEFAULT_PADDING = 'SAME'
 
+
 def layer(op):
+
     def layer_decorated(self, *args, **kwargs):
         # Automatically set a name if not provided.
         name = kwargs.setdefault('name', self.get_unique_name(op.__name__))
         # Figure out the layer inputs.
-        if len(self.inputs)==0:
-            raise RuntimeError('No input variables found for layer %s.'%name)
-        elif len(self.inputs)==1:
+        if len(self.inputs) == 0:
+            raise RuntimeError('No input variables found for layer %s.' % name)
+        elif len(self.inputs) == 1:
             layer_input = self.inputs[0]
         else:
             layer_input = list(self.inputs)
@@ -22,9 +24,12 @@ def layer(op):
         self.feed(layer_output)
         # Return self for chained calls.
         return self
+
     return layer_decorated
 
+
 class Network(object):
+
     def __init__(self, inputs, trainable=True):
         self.inputs = []
         self.layers = dict(inputs)
@@ -47,7 +52,7 @@ class Network(object):
                             raise
 
     def feed(self, *args):
-        assert len(args)!=0
+        assert len(args) != 0
         self.inputs = []
         for layer in args:
             if isinstance(layer, basestring):
@@ -55,7 +60,7 @@ class Network(object):
                     layer = self.layers[layer]
                 except KeyError:
                     print self.layers.keys()
-                    raise KeyError('Unknown layer name fed: %s'%layer)
+                    raise KeyError('Unknown layer name fed: %s' % layer)
             self.inputs.append(layer)
         return self
 
@@ -63,8 +68,8 @@ class Network(object):
         return self.inputs[-1]
 
     def get_unique_name(self, prefix):
-        id = sum(t.startswith(prefix) for t,_ in self.layers.items())+1
-        return '%s_%d'%(prefix, id)
+        id = sum(t.startswith(prefix) for t, _ in self.layers.items()) + 1
+        return '%s_%d' % (prefix, id)
 
     def make_var(self, name, shape):
         return tf.get_variable(name, shape, trainable=self.trainable)
@@ -73,26 +78,39 @@ class Network(object):
         assert padding in ('SAME', 'VALID')
 
     @layer
-    def conv(self, input, k_h, k_w, c_o, s_h, s_w, name, relu=True, padding=DEFAULT_PADDING, group=1):
+    def conv(self,
+             input,
+             k_h,
+             k_w,
+             c_o,
+             s_h,
+             s_w,
+             name,
+             relu=True,
+             padding=DEFAULT_PADDING,
+             group=1):
         self.validate_padding(padding)
         c_i = input.get_shape()[-1]
-        assert c_i%group==0
-        assert c_o%group==0
+        assert c_i % group == 0
+        assert c_o % group == 0
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
         with tf.variable_scope(name) as scope:
-            kernel = self.make_var('weights', shape=[k_h, k_w, c_i/group, c_o])
+            kernel = self.make_var('weights', shape=[k_h, k_w, c_i / group, c_o])
             biases = self.make_var('biases', [c_o])
-            if group==1:
+            if group == 1:
                 conv = convolve(input, kernel)
             else:
                 input_groups = tf.split(3, group, input)
                 kernel_groups = tf.split(3, group, kernel)
-                output_groups = [convolve(i, k) for i,k in zip(input_groups, kernel_groups)]
+                output_groups = [convolve(i, k) for i, k in zip(input_groups, kernel_groups)]
                 conv = tf.concat(3, output_groups)
             if relu:
                 bias = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape().as_list())
                 return tf.nn.relu(bias, name=scope.name)
-            return tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape().as_list(), name=scope.name)
+            return tf.reshape(
+                tf.nn.bias_add(conv, biases),
+                conv.get_shape().as_list(),
+                name=scope.name)
 
     @layer
     def relu(self, input, name):
@@ -133,7 +151,7 @@ class Network(object):
     def fc(self, input, num_out, name, relu=True):
         with tf.variable_scope(name) as scope:
             input_shape = input.get_shape()
-            if input_shape.ndims==4:
+            if input_shape.ndims == 4:
                 dim = 1
                 for d in input_shape[1:].as_list():
                     dim *= d

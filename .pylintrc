@@ -1,0 +1,30 @@
+[MASTER]
+ignore=caffepb.py
+
+[MESSAGES CONTROL]
+disable=missing-docstring,invalid-name,wildcard-import,unused-wildcard-import,bad-builtin,no-self-use,locally-disabled
+
+[MISCELLANEOUS]
+# Exclude TODOs
+notes=
+
+[TYPECHECK]
+ignored-classes=numpy,cv2,NodeKind,LayerType,NetParameter,NpzFile
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args=20
+# Maximum number of locals for function / method body
+max-locals=30
+# Maximum number of return / yield for function / method body
+max-returns=10
+# Maximum number of branch for function / method body
+max-branches=12
+# Maximum number of statements in function / method body
+max-statements=200
+# Maximum number of attributes for a class (see R0902).
+max-attributes=100
+# Maximum number of public methods for a class (see R0904).
+max-public-methods=200
+# Maximum number of boolean expressions in a if statement
+max-bool-expr=10

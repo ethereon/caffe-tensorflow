@@ -3,63 +3,67 @@ import numbers
 from .shapes import *
 from collections import namedtuple
 
-LAYER_DESCRIPTORS =  {
+LAYER_DESCRIPTORS = {
 
     # Caffe Types
-    'AbsVal'                    : shape_identity,
-    'Accuracy'                  : shape_scalar,
-    'ArgMax'                    : shape_not_implemented,
-    'BNLL'                      : shape_not_implemented,
-    'Concat'                    : shape_concat,
-    'ContrastiveLoss'           : shape_scalar,
-    'Convolution'               : shape_convolution,
-    'Deconvolution'             : shape_not_implemented,
-    'Data'                      : shape_data,
-    'Dropout'                   : shape_identity,
-    'DummyData'                 : shape_data,
-    'EuclideanLoss'             : shape_scalar,
-    'Eltwise'                   : shape_identity,
-    'Exp'                       : shape_identity,
-    'Flatten'                   : shape_not_implemented,
-    'HDF5Data'                  : shape_data,
-    'HDF5Output'                : shape_identity,
-    'HingeLoss'                 : shape_scalar,
-    'Im2col'                    : shape_not_implemented,
-    'ImageData'                 : shape_data,
-    'InfogainLoss'              : shape_scalar,
-    'InnerProduct'              : shape_inner_product,
-    'Input'                     : shape_data,
-    'LRN'                       : shape_identity,
-    'MemoryData'                : shape_mem_data,
-    'MultinomialLogisticLoss'   : shape_scalar,
-    'MVN'                       : shape_not_implemented,
-    'Pooling'                   : shape_pool,
-    'Power'                     : shape_identity,
-    'ReLU'                      : shape_identity,
-    'Sigmoid'                   : shape_identity,
-    'SigmoidCrossEntropyLoss'   : shape_scalar,
-    'Silence'                   : shape_not_implemented,
-    'Softmax'                   : shape_identity,
-    'SoftmaxWithLoss'           : shape_scalar,
-    'Split'                     : shape_not_implemented,
-    'Slice'                     : shape_not_implemented,
-    'TanH'                      : shape_identity,
-    'WindowData'                : shape_not_implemented,
-    'Threshold'                 : shape_identity,
+    'AbsVal': shape_identity,
+    'Accuracy': shape_scalar,
+    'ArgMax': shape_not_implemented,
+    'BNLL': shape_not_implemented,
+    'Concat': shape_concat,
+    'ContrastiveLoss': shape_scalar,
+    'Convolution': shape_convolution,
+    'Deconvolution': shape_not_implemented,
+    'Data': shape_data,
+    'Dropout': shape_identity,
+    'DummyData': shape_data,
+    'EuclideanLoss': shape_scalar,
+    'Eltwise': shape_identity,
+    'Exp': shape_identity,
+    'Flatten': shape_not_implemented,
+    'HDF5Data': shape_data,
+    'HDF5Output': shape_identity,
+    'HingeLoss': shape_scalar,
+    'Im2col': shape_not_implemented,
+    'ImageData': shape_data,
+    'InfogainLoss': shape_scalar,
+    'InnerProduct': shape_inner_product,
+    'Input': shape_data,
+    'LRN': shape_identity,
+    'MemoryData': shape_mem_data,
+    'MultinomialLogisticLoss': shape_scalar,
+    'MVN': shape_not_implemented,
+    'Pooling': shape_pool,
+    'Power': shape_identity,
+    'ReLU': shape_identity,
+    'Sigmoid': shape_identity,
+    'SigmoidCrossEntropyLoss': shape_scalar,
+    'Silence': shape_not_implemented,
+    'Softmax': shape_identity,
+    'SoftmaxWithLoss': shape_scalar,
+    'Split': shape_not_implemented,
+    'Slice': shape_not_implemented,
+    'TanH': shape_identity,
+    'WindowData': shape_not_implemented,
+    'Threshold': shape_identity,
 
     # Internal Types
-    'Implicit'                  : shape_identity
+    'Implicit': shape_identity
 }
 
 LAYER_TYPES = LAYER_DESCRIPTORS.keys()
 
+
 def generate_layer_type_enum():
-    types = {t:t for t in LAYER_TYPES}
+    types = {t: t for t in LAYER_TYPES}
     return type('LayerType', (), types)
+
 
 LayerType = generate_layer_type_enum()
 
+
 class NodeKind(LayerType):
+
     @staticmethod
     def map_raw_kind(kind):
         if kind in LAYER_TYPES:
@@ -72,14 +76,19 @@ class NodeKind(LayerType):
             val = LAYER_DESCRIPTORS[node.kind](node)
             return val
         except NotImplementedError:
-            raise KaffeError('Output shape computation not implemented for type: %s'%node.kind)
+            raise KaffeError('Output shape computation not implemented for type: %s' % node.kind)
 
-class NodeDispatchError(KaffeError): pass
+
+class NodeDispatchError(KaffeError):
+
+    pass
+
 
 class NodeDispatch(object):
+
     @staticmethod
     def get_handler_name(node_kind):
-        if len(node_kind)<=4:
+        if len(node_kind) <= 4:
             # A catch-all for things like ReLU and tanh
             return node_kind.lower()
         # Convert from CamelCase to under_scored
@@ -92,9 +101,12 @@ class NodeDispatch(object):
         try:
             return getattr(self, name)
         except AttributeError:
-            raise NodeDispatchError('No handler found for node kind: %s (expected: %s)'%(node_kind, name))
+            raise NodeDispatchError('No handler found for node kind: %s (expected: %s)' %
+                                    (node_kind, name))
+
 
 class LayerAdapter(object):
+
     def __init__(self, layer, kind):
         self.layer = layer
         self.kind = kind
@@ -106,7 +118,7 @@ class LayerAdapter(object):
         try:
             return getattr(self.layer, name)
         except AttributeError:
-            raise NodeDispatchError('Caffe parameters not found for layer kind: %s'%(self.kind))
+            raise NodeDispatchError('Caffe parameters not found for layer kind: %s' % (self.kind))
 
     @staticmethod
     def get_kernel_value(scalar, repeated, idx, default=None):
@@ -115,10 +127,10 @@ class LayerAdapter(object):
         if repeated:
             if isinstance(repeated, numbers.Number):
                 return repeated
-            if len(repeated)==1:
+            if len(repeated) == 1:
                 # Same value applies to all spatial dimensions
                 return int(repeated[0])
-            assert idx<len(repeated)
+            assert idx < len(repeated)
             # Extract the value for the given spatial dimension
             return repeated[idx]
         if default is None:
@@ -137,10 +149,6 @@ class LayerAdapter(object):
         p_w = self.get_kernel_value(params.pad_h, params.pad, 1, default=0)
         return KernelParameters(k_h, k_w, s_h, s_w, p_h, p_w)
 
-KernelParameters = namedtuple('KernelParameters',
-                              ['kernel_h',
-                              'kernel_w',
-                              'stride_h',
-                              'stride_w',
-                              'pad_h',
-                              'pad_w'])
+
+KernelParameters = namedtuple('KernelParameters', ['kernel_h', 'kernel_w', 'stride_h', 'stride_w',
+                                                   'pad_h', 'pad_w'])
