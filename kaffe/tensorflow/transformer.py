@@ -10,6 +10,7 @@ class TensorFlowNode(object):
         self.op = op
         self.args = args
         self.kwargs = list(kwargs.items())
+        self.node = None
 
     def format(self, arg):
         return "'%s'" % arg if isinstance(arg, basestring) else str(arg)

@@ -54,22 +54,22 @@ class Network(object):
     def feed(self, *args):
         assert len(args) != 0
         self.inputs = []
-        for layer in args:
-            if isinstance(layer, basestring):
+        for fed_layer in args:
+            if isinstance(fed_layer, basestring):
                 try:
-                    layer = self.layers[layer]
+                    fed_layer = self.layers[fed_layer]
                 except KeyError:
                     print self.layers.keys()
-                    raise KeyError('Unknown layer name fed: %s' % layer)
-            self.inputs.append(layer)
+                    raise KeyError('Unknown layer name fed: %s' % fed_layer)
+            self.inputs.append(fed_layer)
         return self
 
     def get_output(self):
         return self.inputs[-1]
 
     def get_unique_name(self, prefix):
-        id = sum(t.startswith(prefix) for t, _ in self.layers.items()) + 1
-        return '%s_%d' % (prefix, id)
+        ident = sum(t.startswith(prefix) for t, _ in self.layers.items()) + 1
+        return '%s_%d' % (prefix, ident)
 
     def make_var(self, name, shape):
         return tf.get_variable(name, shape, trainable=self.trainable)

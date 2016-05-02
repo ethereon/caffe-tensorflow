@@ -73,6 +73,7 @@ class Node(object):
     @property
     def data_shape(self):
         assert self.data
+        # pylint: disable=unsubscriptable-object
         return self.data[IDX_WEIGHTS].shape
 
     def __str__(self):
@@ -152,6 +153,7 @@ class DataInjector(object):
         self.def_path = def_path
         self.data_path = data_path
         self.did_use_pb = False
+        self.params = None
         self.load()
 
     def load(self):
@@ -175,7 +177,7 @@ class DataInjector(object):
 
     def transform_data(self, layer):
         transformed = []
-        for idx, blob in enumerate(layer.blobs):
+        for blob in layer.blobs:
             if len(blob.shape.dim):
                 dims = blob.shape.dim
                 c_o, c_i, h, w = map(int, [1] * (4 - len(dims)) + list(dims))
@@ -380,9 +382,6 @@ class NodeMapper(NodeDispatch):
     def __init__(self, graph):
         self.graph = graph
 
-    def attach_node(self, node):
-        return True
-
     def map(self):
         nodes = self.graph.topologically_sorted()
         # Remove input nodes - we'll handle them separately.
@@ -419,8 +418,7 @@ class NodeMapper(NodeDispatch):
         map_func = self.get_handler(node.kind, 'map')
         mapped_node = map_func(node)
         assert mapped_node is not None
-        if self.attach_node(node):
-            mapped_node.node = node
+        mapped_node.node = node
         return mapped_node
 
     def commit(self, mapped_chains):
