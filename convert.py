@@ -29,17 +29,17 @@ def validate_arguments(args):
 def convert(def_path, caffemodel, data_output_path, code_output_path, phase='test'):
     try:
         transformer = TensorFlowTransformer(def_path, caffemodel, phase=phase)
-        print('Converting data...')
+        print_stderr('Converting data...')
         if caffemodel is not None:
             data = transformer.transform_data()
-            print('Saving data...')
+            print_stderr('Saving data...')
             with open(data_output_path, 'wb') as data_out:
                 np.save(data_out, data)
         if code_output_path:
-            print('Saving source...')
+            print_stderr('Saving source...')
             with open(code_output_path, 'wb') as src_out:
                 src_out.write(transformer.transform_source())
-        print('Done.')
+        print_stderr('Done.')
     except KaffeError as err:
         fatal_error('Error encountered: {}'.format(err))
 
