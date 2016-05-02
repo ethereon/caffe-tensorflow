@@ -8,19 +8,16 @@ from google.protobuf import text_format
 from .layers import *
 from .base import print_stderr
 
-PYCAFFE_AVAILABLE = False
-if 'USE_PYCAFFE' in os.environ:
-    try:
-        import caffe
-        PYCAFFE_AVAILABLE = True
-    except ImportError:
-        print_stderr('WARNING: PyCaffe not found!')
-        print_stderr('Falling back to protocol buffer implementation.')
-        print_stderr('* Conversions will be drastically slower.')
-        print_stderr('* This backend is UNTESTED!')
-        from . import caffepb
-else:
+try:
+    import caffe
+    PYCAFFE_AVAILABLE = True
+except ImportError:
     from . import caffepb
+    PYCAFFE_AVAILABLE = False
+    print_stderr('WARNING: PyCaffe not found!')
+    print_stderr('Falling back to protocol buffer implementation.')
+    print_stderr('* Conversions will be drastically slower.')
+    print_stderr('* This backend is UNTESTED!')
 
 if PYCAFFE_AVAILABLE:
     # Use the protobuf code from the imported distribution.
