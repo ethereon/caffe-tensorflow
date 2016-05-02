@@ -18,21 +18,21 @@ The output consists of two files:
 This example showns you how to finetune code from the [Caffe MNIST tutorial](http://caffe.berkeleyvision.org/gathered/examples/mnist.html) using Tensorflow.
 First, you can convert a prototxt model to tensorflow code:
 
-    $ ./convert.py examples/mnist/lenet.prototxt
+    $ ./convert.py examples/mnist/lenet.prototxt --code-output-path=mynet.py
 
-This produces tensorflow code for the LeNet network in mynet.py. The code can be imported as described below in the Inference section. Caffe-tensorflow also lets you convert .caffemodel weight files to .npy files that can be directly loaded from tensorflow:
+This produces tensorflow code for the LeNet network in `mynet.py`. The code can be imported as described below in the Inference section. Caffe-tensorflow also lets you convert `.caffemodel` weight files to `.npy` files that can be directly loaded from tensorflow:
 
-    $ ./convert.py examples/mnist/lenet.prototxt --caffemodel examples/mnist/lenet_iter_10000.caffemodel
-    
-The above command will generate a weight file named mynet.npy in addition to the mynet.py code.
+    $ ./convert.py examples/mnist/lenet.prototxt --caffemodel examples/mnist/lenet_iter_10000.caffemodel --data-output-path=mynet.npy
+
+The above command will generate a weight file named `mynet.npy`.
 
 #### Inference:
 
 Once you have generated both the code weight files for LeNet, you can finetune LeNet using tensorflow with
 
     $ ./examples/mnist/finetune_mnist.py
-    
-At a high level, finetune_mnist.py works as follows:
+
+At a high level, `finetune_mnist.py` works as follows:
 
 ```python
 # Import the converted model's class
@@ -71,7 +71,7 @@ The following converted models have been verified on the ILSVRC2012 validation s
 
 - Caffe is not strictly required. If PyCaffe is found in your `PYTHONPATH`, and the `USE_PYCAFFE` environment variable is set, it will be used. Otherwise, a fallback will be used. However, the fallback uses the pure Python-based implementation of protobuf, which is astoundingly slow (~1.5 minutes to parse the VGG16 parameters). The experimental CPP protobuf backend doesn't particularly help here, since it runs into the file size limit (Caffe gets around this by overriding this limit in C++). A cleaner solution here would be to implement the loader as a C++ module.
 
-- Only a subset of Caffe layers and accompanying parameters are currently supported. 
+- Only a subset of Caffe layers and accompanying parameters are currently supported.
 
 - Not all Caffe models can be converted to TensorFlow. For instance, Caffe supports arbitrary padding whereas TensorFlow's support is currently restricted to `SAME` and `VALID`.
 

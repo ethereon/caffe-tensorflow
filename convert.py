@@ -4,15 +4,29 @@ import os
 import sys
 import numpy as np
 import argparse
-from kaffe import KaffeError
+from kaffe import KaffeError, print_stderr
 from kaffe.tensorflow import TensorFlowTransformer
 
 
-def convert(def_path,
-            caffemodel=None,
-            data_output_path='mynet.npy',
-            code_output_path='mynet.py',
-            phase='test'):
+class ArgError(Exception):
+    pass
+
+
+def fatal_error(msg):
+    print_stderr(msg)
+    exit(-1)
+
+
+def validate_arguments(args):
+    if (args.data_output_path is not None) and (args.caffemodel is None):
+        raise ArgError('No input data path provided.')
+    if (args.caffemodel is not None) and (args.data_output_path is None):
+        raise ArgError('No output data path provided.')
+    if (args.code_output_path is None) and (args.data_output_path is None):
+        raise ArgError('No output path specified.')
+
+
+def convert(def_path, caffemodel, data_output_path, code_output_path, phase='test'):
     try:
         transformer = TensorFlowTransformer(def_path, caffemodel, phase=phase)
         print('Converting data...')
@@ -21,31 +35,30 @@ def convert(def_path,
             print('Saving data...')
             with open(data_output_path, 'wb') as data_out:
                 np.save(data_out, data)
-        print('Saving source...')
-        with open(code_output_path, 'wb') as src_out:
-            src_out.write(transformer.transform_source())
+        if code_output_path:
+            print('Saving source...')
+            with open(code_output_path, 'wb') as src_out:
+                src_out.write(transformer.transform_source())
         print('Done.')
     except KaffeError as err:
-        print('Error encountered: %s' % err)
-        exit(-1)
+        fatal_error('Error encountered: {}'.format(err))
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('def_path', help='Model definition (.prototxt) path')
-    parser.add_argument('--caffemodel', default=None, help='Model data (.caffemodel) path')
-    parser.add_argument('--data_output_path',
-                        default='mynet.npy',
-                        help='Converted data output path')
-    parser.add_argument('--code_output_path',
-                        default='mynet.py',
-                        help='Save generated source to this path')
+    parser.add_argument('--caffemodel', help='Model data (.caffemodel) path')
+    parser.add_argument('--data-output-path', help='Converted data output path')
+    parser.add_argument('--code-output-path', help='Save generated source to this path')
     parser.add_argument('-p',
                         '--phase',
                         default='test',
                         help='The phase to convert: test (default) or train')
     args = parser.parse_args()
-
+    try:
+        validate_arguments(args)
+    except ArgError as err:
+        fatal_error(err)
     convert(args.def_path, args.caffemodel, args.data_output_path, args.code_output_path,
             args.phase)
 
