@@ -132,13 +132,12 @@ class Network(object):
                 output_groups = [convolve(i, k) for i, k in zip(input_groups, kernel_groups)]
                 # Concatenate the groups
                 conv = tf.concat(3, output_groups)
+            # Add the biases
+            conv_output = tf.nn.bias_add(conv, biases)
             if relu:
-                bias = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape().as_list())
-                return tf.nn.relu(bias, name=scope.name)
-            return tf.reshape(
-                tf.nn.bias_add(conv, biases),
-                conv.get_shape().as_list(),
-                name=scope.name)
+                # ReLU non-linearity
+                conv_output = tf.nn.relu(conv_output, name=scope.name)
+            return conv_output
 
     @layer
     def relu(self, input, name):
@@ -180,12 +179,13 @@ class Network(object):
         with tf.variable_scope(name) as scope:
             input_shape = input.get_shape()
             if input_shape.ndims == 4:
+                # The input is spatial. Vectorize it first.
                 dim = 1
                 for d in input_shape[1:].as_list():
                     dim *= d
-                feed_in = tf.reshape(input, [int(input_shape[0]), dim])
+                feed_in = tf.reshape(input, [-1, dim])
             else:
-                feed_in, dim = (input, int(input_shape[-1]))
+                feed_in, dim = (input, input_shape[-1].value)
             weights = self.make_var('weights', shape=[dim, num_out])
             biases = self.make_var('biases', [num_out])
             op = tf.nn.relu_layer if relu else tf.nn.xw_plus_b
