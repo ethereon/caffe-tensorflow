@@ -1,35 +1,9 @@
-#pylint: disable=wrong-import-position
-
-import os
-import sys
 import numpy as np
 from google.protobuf import text_format
 
 from .layers import *
 from .base import print_stderr
-
-try:
-    import caffe
-    PYCAFFE_AVAILABLE = True
-except ImportError:
-    from . import caffepb
-    PYCAFFE_AVAILABLE = False
-    print_stderr('WARNING: PyCaffe not found!')
-    print_stderr('Falling back to protocol buffer implementation.')
-    print_stderr('* Conversions will be drastically slower.')
-    print_stderr('* This backend is UNTESTED!')
-
-if PYCAFFE_AVAILABLE:
-    # Use the protobuf code from the imported distribution.
-    # This way, Caffe variants with custom layers will work.
-    try:
-        sys.path.append(os.path.join(os.path.dirname(caffe.__file__), 'proto/'))
-        import caffe_pb2 as caffepb
-    except ImportError:
-        from . import caffepb
-        print_stderr('Failed to import dist protobuf code. Using failsafe.')
-        print_stderr('Custom layers might not work.')
-
+from .caffe import has_pycaffe, get_caffe_resolver
 
 class Node(object):
 
@@ -154,18 +128,19 @@ class DataInjector(object):
         self.load()
 
     def load(self):
-        if PYCAFFE_AVAILABLE:
+        if has_pycaffe():
             self.load_using_caffe()
         else:
             self.load_using_pb()
 
     def load_using_caffe(self):
+        caffe = get_caffe_resolver().caffe
         net = caffe.Net(self.def_path, self.data_path, caffe.TEST)
         data = lambda blob: blob.data
         self.params = [(k, map(data, v)) for k, v in net.params.items()]
 
     def load_using_pb(self):
-        data = caffepb.NetParameter()
+        data = get_caffe_resolver().NetParameter()
         data.MergeFromString(open(self.data_path, 'rb').read())
         pair = lambda layer: (layer.name, self.transform_data(layer))
         layers = data.layers or data.layer
@@ -268,7 +243,7 @@ class GraphBuilder(object):
         self.load()
 
     def load(self):
-        self.params = caffepb.NetParameter()
+        self.params = get_caffe_resolver().NetParameter()
         with open(self.def_path, 'rb') as def_file:
             text_format.Merge(def_file.read(), self.params)
 
