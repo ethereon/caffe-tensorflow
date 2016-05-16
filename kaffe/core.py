@@ -235,19 +235,27 @@ class DataReshaper(object):
 
 
 class GraphBuilder(object):
+    '''Constructs a model graph from a Caffe protocol buffer definition.'''
 
     def __init__(self, def_path, data_path=None, phase='test'):
+        '''
+        def_path: Path to the model definition (.prototxt)
+        data_path: Path to the model data (.caffemodel)
+        phase: Either 'test' or 'train'. Used for filtering phase-specific nodes.
+        '''
         self.def_path = def_path
         self.data_path = data_path
         self.phase = phase
         self.load()
 
     def load(self):
+        '''Load the layer definitions from the prototxt.'''
         self.params = get_caffe_resolver().NetParameter()
         with open(self.def_path, 'rb') as def_file:
             text_format.Merge(def_file.read(), self.params)
 
     def filter_layers(self, layers):
+        '''Filter out layers based on the current phase.'''
         phase_map = {0: 'train', 1: 'test'}
         filtered_layer_names = set()
         filtered_layers = []
@@ -271,15 +279,23 @@ class GraphBuilder(object):
         return filtered_layers
 
     def make_node(self, layer):
+        '''Create a graph node for the given layer.'''
         kind = NodeKind.map_raw_kind(layer.type)
         if kind is None:
             raise KaffeError('Unknown layer type encountered: %s' % layer.type)
+        # We want to use the layer's top names (the "output" names), rather than the
+        # name attribute, which is more of readability thing than a functional one.
+        # Other layers will refer to a node by its "top name".
         return Node(layer.name, kind, layer=layer)
 
     def make_input_nodes(self):
-        # This method is for old-style inputs, where the input specification
-        # was not treated as a first-class layer in the prototext.
-        # Newer models use the "Input layer" type.
+        '''
+        Create data input nodes.
+
+        This method is for old-style inputs, where the input specification
+        was not treated as a first-class layer in the prototext.
+        Newer models use the "Input layer" type.
+        '''
         nodes = [Node(name, NodeKind.Data) for name in self.params.input]
         if len(nodes):
             input_dim = map(int, self.params.input_dim)
@@ -293,6 +309,7 @@ class GraphBuilder(object):
         return nodes
 
     def fuse_relus(self, nodes):
+        '''Merge ReLUs with their inputs.'''
         fused_nodes = []
         for node in nodes:
             if node.kind != NodeKind.ReLU:
@@ -314,36 +331,65 @@ class GraphBuilder(object):
         return [node for node in nodes if node not in fused_nodes]
 
     def build(self, fuse_relus=True):
+        '''
+        Builds the graph from the Caffe layer definitions.
+
+        fuse_relu: If true, the ReLU nodes are merged with their input node.
+        '''
+        # Get the layers
         layers = self.params.layers or self.params.layer
+        # Filter out phase-excluded layers
         layers = self.filter_layers(layers)
+        # Get any separately-specified input layers
         nodes = self.make_input_nodes()
         nodes += [self.make_node(layer) for layer in layers]
+        # Initialize the graph
         graph = Graph(nodes=nodes, name=self.params.name)
+        # Connect the nodes
+        #
+        # A note on layers and outputs:
+        # In Caffe, each layer can produce multiple outputs ("tops") from a set of inputs
+        # ("bottoms"). The bottoms refer to other layers' tops. The top can rewrite a bottom
+        # (in case of in-place operations). Note that the layer's name is not used for establishing
+        # any connectivity. It's only used for data association. By convention, a layer with a
+        # single top will often use the same name (although this is not required).
+        #
+        # The current implementation only supports single-output nodes (note that a node can still
+        # have multiple children, since multiple child nodes can refer to the single top's name).
         node_outputs = {}
         for layer in layers:
             node = graph.get_node(layer.name)
-            for parent_name in layer.bottom:
-                assert parent_name != layer.name
-                parent_node = node_outputs.get(parent_name)
+            for input_name in layer.bottom:
+                assert input_name != layer.name
+                parent_node = node_outputs.get(input_name)
                 if (parent_node is None) or (parent_node == node):
-                    parent_node = graph.get_node(parent_name)
+                    parent_node = graph.get_node(input_name)
                 node.add_parent(parent_node)
-            for child_name in layer.top:
-                if child_name == layer.name:
+            if len(layer.top)>1:
+                raise KaffeError('Multiple top nodes are not supported.')
+            for output_name in layer.top:
+                if output_name == layer.name:
+                    # Output is named the same as the node. No further action required.
                     continue
-                if child_name in graph:
-                    # This is an "in-place operation" that overwrites an existing node.
-                    # This would create a cycle in the graph. We'll undo the in-placing
-                    # by substituting this node wherever the overwritten node is referenced.
-                    node_outputs[child_name] = node
-                else:
-                    # This is an "implicit" child node: not explicitly
-                    # defined in the prototxt, but as a top (output) for some layer.
-                    graph.add_node(Node(child_name, NodeKind.Implicit))
-                    node.add_child(graph.get_node(child_name))
+                # There are two possibilities here:
+                #
+                # Case 1: output_name refers to another node in the graph.
+                # This is an "in-place operation" that overwrites an existing node.
+                # This would create a cycle in the graph. We'll undo the in-placing
+                # by substituting this node wherever the overwritten node is referenced.
+                #
+                # Case 2: output_name violates the convention layer.name == output_name.
+                # Since we are working in the single-output regime, we will can rename it to
+                # match the layer name.
+                #
+                # For both cases, future references to this top re-routes to this node.
+                node_outputs[output_name] = node
+        # Fuse rectified linear units if requested
         if fuse_relus:
             graph = Graph(nodes=self.fuse_relus(graph.nodes), name=graph.name)
+        # Pre-compute the output shape for each node
         graph.compute_output_shapes()
+        # Associate the node with its learned data
         if self.data_path is not None:
             DataInjector(self.def_path, self.data_path).inject(graph)
         return graph
@@ -359,8 +405,6 @@ class NodeMapper(NodeDispatch):
         # Remove input nodes - we'll handle them separately.
         input_nodes = self.graph.get_input_nodes()
         nodes = [t for t in nodes if t not in input_nodes]
-        # Remove implicit nodes.
-        nodes = [t for t in nodes if t.kind != NodeKind.Implicit]
         # Decompose DAG into chains.
         chains = []
         for node in nodes:
