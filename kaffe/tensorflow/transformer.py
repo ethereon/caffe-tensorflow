@@ -5,23 +5,34 @@ from ..core import GraphBuilder, DataReshaper, NodeMapper
 
 
 class TensorFlowNode(object):
+    '''An intermediate representation for TensorFlow operations.'''
 
     def __init__(self, op, *args, **kwargs):
+        # A string corresponding to the TensorFlow operation
         self.op = op
+        # Positional arguments for the operation
         self.args = args
+        # Keyword arguments for the operation
         self.kwargs = list(kwargs.items())
+        # The source Caffe node
         self.node = None
 
     def format(self, arg):
+        '''Returns a string representation for the given value.'''
         return "'%s'" % arg if isinstance(arg, basestring) else str(arg)
 
     def pair(self, key, value):
+        '''Returns key=formatted(value).'''
         return '%s=%s' % (key, self.format(value))
 
     def emit(self):
+        '''Emits the Python source for this node.'''
+        # Format positional arguments
         args = map(self.format, self.args)
+        # Format any keyword arguments
         if self.kwargs:
             args += [self.pair(k, v) for k, v in self.kwargs]
+        # Set the node name
         args.append(self.pair('name', self.node.name))
         args = ', '.join(args)
         return '%s(%s)' % (self.op, args)
