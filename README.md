@@ -15,18 +15,19 @@ The output consists of two files:
 
 ### Examples
 
-See the `examples` folder for more details.
+See the [examples](examples/) folder for more details.
 
 ## Verification
 
 The following converted models have been verified on the ILSVRC2012 validation set.
 
-| Model                                          | Top 5 Accuracy |
-|:-----------------------------------------------|---------------:|
-| [VGG 16](http://arxiv.org/abs/1409.1556)       |         89.88% |
-| [GoogLeNet](http://arxiv.org/abs/1409.4842)    |         89.06% |
-| [CaffeNet](http://arxiv.org/abs/1408.5093)     |         79.93% |
-| [AlexNet](http://goo.gl/3BilWd)                |         79.84% |
+| Model                                                 | Top 5 Accuracy |
+|:------------------------------------------------------|---------------:|
+| [VGG 16](http://arxiv.org/abs/1409.1556)              |         89.88% |
+| [GoogLeNet](http://arxiv.org/abs/1409.4842)           |         89.06% |
+| [Network in Network](http://arxiv.org/abs/1312.4400)  |         81.21% |
+| [CaffeNet](http://arxiv.org/abs/1408.5093)            |         79.93% |
+| [AlexNet](http://goo.gl/3BilWd)                       |         79.84% |
 
 ## Notes
 

@@ -9,6 +9,7 @@ from googlenet import GoogleNet
 from vgg import VGG16
 from alexnet import AlexNet
 from caffenet import CaffeNet
+from nin import NiN
 
 
 class DataSpec(object):
@@ -32,7 +33,7 @@ class DataSpec(object):
         self.mean = mean if mean is not None else np.array([104., 117., 124.])
 
 # Collection of sample auto-generated models
-MODELS = (AlexNet, CaffeNet, GoogleNet, VGG16)
+MODELS = (AlexNet, CaffeNet, GoogleNet, NiN, VGG16)
 
 # The corresponding data specifications for the sample models
 # These specifications are based on how the models were trained.
@@ -53,6 +54,11 @@ MODEL_DATA_SPECS = {
                         scale_size=256,
                         crop_size=224,
                         isotropic=False),
+
+    NiN: DataSpec(batch_size=500,
+                  scale_size=256,
+                  crop_size=224,
+                  isotropic=True),
 
     VGG16: DataSpec(batch_size=25,
                     scale_size=256,
