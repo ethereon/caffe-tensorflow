@@ -77,6 +77,8 @@ def main():
 
     # Load the network
     net = load_model(args.model)
+    if net is None:
+        exit(-1)
 
     # Load the dataset
     data_spec = models.get_data_spec(model_instance=net)
