@@ -37,14 +37,17 @@ def _load_image(path, scale, isotropic, crop, mean):
     img = read_image(path)
     # Rescale
     if isotropic:
-        scale = scale / float(min(w, h))
-        new_height, new_width = (h * scale, w * scale)
+        img_shape = tf.to_float(tf.shape(img)[:2])
+        min_length = tf.minimum(img_shape[0], img_shape[1])
+        new_shape = tf.to_int32((scale / min_length) * img_shape)
     else:
-        new_height, new_width = (scale, scale)
-    img = tf.image.resize_images(img, new_height, new_width)
-    # Crop
-    img = tf.image.crop_to_bounding_box(img, (new_height - crop) / 2,
-                                        (new_width - crop) / 2, crop, crop)
+        new_shape = tf.pack([scale, scale])
+    img = tf.image.resize_images(img, new_shape[0], new_shape[1])
+    # Center crop
+    # Use the slice workaround until crop_to_bounding_box supports deferred tensor shapes
+    # See: https://github.com/tensorflow/tensorflow/issues/521
+    offset = (new_shape - crop) / 2
+    img = tf.slice(img, begin=tf.pack([offset[0], offset[1], 0]), size=tf.pack([crop, crop, -1]))
     # Mean subtraction
     return tf.to_float(img) - mean
 
