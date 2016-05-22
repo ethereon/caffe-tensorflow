@@ -1,8 +1,10 @@
 import numpy as np
-from . import network
-from ..base import *
-from ..core import GraphBuilder, DataReshaper, NodeMapper
 
+from ..data import DataReshaper
+from ..errors import KaffeError, print_stderr
+from ..graph import GraphBuilder, NodeMapper
+
+from . import network
 
 class TensorFlowNode(object):
     '''An intermediate representation for TensorFlow operations.'''
@@ -47,13 +49,13 @@ def get_padding_type(kernel_params, input_shape, output_shape):
     https://github.com/Yangqing/caffe2/blob/master/caffe2/proto/caffe2_legacy.proto
     '''
     k_h, k_w, s_h, s_w, p_h, p_w = kernel_params
-    s_o_h = np.ceil(input_shape[IDX_H] / float(s_h))
-    s_o_w = np.ceil(input_shape[IDX_W] / float(s_w))
-    if (output_shape[IDX_H] == s_o_h) and (output_shape[IDX_W] == s_o_w):
+    s_o_h = np.ceil(input_shape.height / float(s_h))
+    s_o_w = np.ceil(input_shape.width / float(s_w))
+    if (output_shape.height == s_o_h) and (output_shape.width == s_o_w):
         return 'SAME'
-    v_o_h = np.ceil((input_shape[IDX_H] - k_h + 1.0) / float(s_h))
-    v_o_w = np.ceil((input_shape[IDX_W] - k_w + 1.0) / float(s_w))
-    if (output_shape[IDX_H] == v_o_h) and (output_shape[IDX_W] == v_o_w):
+    v_o_h = np.ceil((input_shape.height - k_h + 1.0) / float(s_h))
+    v_o_w = np.ceil((input_shape.width - k_w + 1.0) / float(s_w))
+    if (output_shape.height == v_o_h) and (output_shape.width == v_o_w):
         return 'VALID'
     return None
 
@@ -76,7 +78,6 @@ class TensorFlowMapper(NodeMapper):
 
     def map_convolution(self, node):
         (kernel_params, kwargs) = self.get_kernel_params(node)
-        #(c_o, c_i, h, w) = node.data_shape
         h = kernel_params.kernel_h
         w = kernel_params.kernel_w
         c_o = node.output_shape[1]

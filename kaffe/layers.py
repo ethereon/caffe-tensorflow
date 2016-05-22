@@ -51,14 +51,7 @@ LAYER_DESCRIPTORS = {
 
 LAYER_TYPES = LAYER_DESCRIPTORS.keys()
 
-
-def generate_layer_type_enum():
-    types = {t: t for t in LAYER_TYPES}
-    return type('LayerType', (), types)
-
-
-LayerType = generate_layer_type_enum()
-
+LayerType = type('LayerType', (), {t: t for t in LAYER_TYPES})
 
 class NodeKind(LayerType):
 

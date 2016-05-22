@@ -1,9 +1,11 @@
 import math
-from .base import *
+from collections import namedtuple
 
+from .errors import KaffeError
 
-def make_shape(n, c, h, w):
-    return (n, c, h, w)
+ParamShape = namedtuple('ParamShape', ['output_channels', 'input_channels', 'height', 'width'])
+
+TensorShape = namedtuple('TensorShape', ['batch_size', 'channels', 'height', 'width'])
 
 
 def get_filter_output_shape(i_h, i_w, params, round_func):
@@ -15,12 +17,12 @@ def get_filter_output_shape(i_h, i_w, params, round_func):
 def get_strided_kernel_output_shape(node, round_func):
     assert node.layer is not None
     input_shape = node.get_only_parent().output_shape
-    o_h, o_w = get_filter_output_shape(input_shape[IDX_H], input_shape[IDX_W],
+    o_h, o_w = get_filter_output_shape(input_shape.height, input_shape.width,
                                        node.layer.kernel_parameters, round_func)
     params = node.layer.parameters
     has_c_o = hasattr(params, 'num_output')
-    c = params.num_output if has_c_o else input_shape[IDX_C]
-    return make_shape(input_shape[IDX_N], c, o_h, o_w)
+    c = params.num_output if has_c_o else input_shape.channels
+    return TensorShape(input_shape.batch_size, c, o_h, o_w)
 
 
 def shape_not_implemented(node):
@@ -33,7 +35,7 @@ def shape_identity(node):
 
 
 def shape_scalar(node):
-    return make_shape(1, 1, 1, 1)
+    return TensorShape(1, 1, 1, 1)
 
 
 def shape_data(node):
@@ -56,7 +58,7 @@ def shape_data(node):
 
 def shape_mem_data(node):
     params = node.parameters
-    return make_shape(params.batch_size, params.channels, params.height, params.width)
+    return TensorShape(params.batch_size, params.channels, params.height, params.width)
 
 
 def shape_concat(node):
@@ -80,4 +82,4 @@ def shape_pool(node):
 
 def shape_inner_product(node):
     input_shape = node.get_only_parent().output_shape
-    return make_shape(input_shape[IDX_N], node.layer.parameters.num_output, 1, 1)
+    return TensorShape(input_shape.batch_size, node.layer.parameters.num_output, 1, 1)

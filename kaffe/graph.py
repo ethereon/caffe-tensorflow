@@ -1,9 +1,10 @@
-import numpy as np
 from google.protobuf import text_format
 
-from .layers import *
-from .base import print_stderr
-from .caffe import has_pycaffe, get_caffe_resolver
+from .caffe import get_caffe_resolver
+from .data import DataInjector
+from .errors import KaffeError, print_stderr
+from .layers import LayerAdapter, LayerType, NodeKind, NodeDispatch
+from .shapes import TensorShape
 
 class Node(object):
 
@@ -40,12 +41,6 @@ class Node(object):
         if self.layer is not None:
             return self.layer.parameters
         return None
-
-    @property
-    def data_shape(self):
-        assert self.data
-        # pylint: disable=unsubscriptable-object
-        return self.data[IDX_WEIGHTS].shape
 
     def __str__(self):
         return '[%s] %s' % (self.kind, self.name)
@@ -102,7 +97,7 @@ class Graph(object):
     def compute_output_shapes(self):
         sorted_nodes = self.topologically_sorted()
         for node in sorted_nodes:
-            node.output_shape = NodeKind.compute_output_shape(node)
+            node.output_shape = TensorShape(*NodeKind.compute_output_shape(node))
 
     def __contains__(self, key):
         return key in self.node_lut
@@ -110,128 +105,15 @@ class Graph(object):
     def __str__(self):
         hdr = '{:<20} {:<30} {:>20} {:>20}'.format('Type', 'Name', 'Param', 'Output')
         s = [hdr, '-' * 94]
+        fmt_tensor_shape = lambda ts: '({}, {}, {}, {})'.format(*ts)
         for node in self.topologically_sorted():
-            data_shape = node.data[IDX_WEIGHTS].shape if node.data else '--'
+            # If the node has learned parameters, display the first one's shape.
+            # In case of convolutions, this corresponds to the weights.
+            data_shape = node.data[0].shape if node.data else '--'
             out_shape = node.output_shape or '--'
             s.append('{:<20} {:<30} {:>20} {:>20}'.format(node.kind, node.name, data_shape,
-                                                          out_shape))
+                                                          fmt_tensor_shape(out_shape)))
         return '\n'.join(s)
-
-
-class DataInjector(object):
-
-    def __init__(self, def_path, data_path):
-        self.def_path = def_path
-        self.data_path = data_path
-        self.did_use_pb = False
-        self.params = None
-        self.load()
-
-    def load(self):
-        if has_pycaffe():
-            self.load_using_caffe()
-        else:
-            self.load_using_pb()
-
-    def load_using_caffe(self):
-        caffe = get_caffe_resolver().caffe
-        net = caffe.Net(self.def_path, self.data_path, caffe.TEST)
-        data = lambda blob: blob.data
-        self.params = [(k, map(data, v)) for k, v in net.params.items()]
-
-    def load_using_pb(self):
-        data = get_caffe_resolver().NetParameter()
-        data.MergeFromString(open(self.data_path, 'rb').read())
-        pair = lambda layer: (layer.name, self.transform_data(layer))
-        layers = data.layers or data.layer
-        self.params = [pair(layer) for layer in layers if layer.blobs]
-        self.did_use_pb = True
-
-    def transform_data(self, layer):
-        transformed = []
-        for blob in layer.blobs:
-            if len(blob.shape.dim):
-                dims = blob.shape.dim
-                c_o, c_i, h, w = map(int, [1] * (4 - len(dims)) + list(dims))
-            else:
-                c_o = blob.num
-                c_i = blob.channels
-                h = blob.height
-                w = blob.width
-            data = np.array(blob.data, dtype=np.float32).reshape(c_o, c_i, h, w)
-            transformed.append(data)
-        return transformed
-
-    def adjust_parameters(self, node, data):
-        if not self.did_use_pb:
-            return data
-        # When using the protobuf-backend, each parameter initially has four dimensions.
-        # In certain cases (like FC layers), we want to eliminate the singleton dimensions.
-        # This implementation takes care of the common cases. However, it does leave the
-        # potential for future issues.
-        # The Caffe-backend does not suffer from this problem.
-        data = list(data)
-        squeeze_indices = [1]  # Squeeze biases.
-        if node.kind == NodeKind.InnerProduct:
-            squeeze_indices.append(0)  # Squeeze FC.
-        for idx in squeeze_indices:
-            data[idx] = np.squeeze(data[idx])
-        return data
-
-    def inject(self, graph):
-        for layer_name, data in self.params:
-            if layer_name in graph:
-                node = graph.get_node(layer_name)
-                node.data = self.adjust_parameters(node, data)
-            else:
-                print_stderr('Ignoring parameters for non-existent layer: %s' % layer_name)
-
-
-class DataReshaper(object):
-
-    def __init__(self, mapping):
-        self.mapping = mapping
-
-    def map(self, ndim):
-        try:
-            return self.mapping[ndim]
-        except KeyError:
-            raise KaffeError('Ordering not found for %d dimensional tensor.' % ndim)
-
-    def transpose(self, data):
-        return data.transpose(self.map(data.ndim))
-
-    def has_spatial_parent(self, node):
-        try:
-            parent = node.get_only_parent()
-            s = parent.output_shape
-            return s[IDX_H] > 1 or s[IDX_W] > 1
-        except KaffeError:
-            return False
-
-    def reshape(self, graph, replace=True):
-        for node in graph.nodes:
-            if node.data is None:
-                continue
-            data = node.data[IDX_WEIGHTS]
-            if (node.kind == NodeKind.InnerProduct) and self.has_spatial_parent(node):
-                # The FC layer connected to the spatial layer needs to be
-                # re-wired to match the new spatial ordering.
-                in_shape = node.get_only_parent().output_shape
-                fc_shape = data.shape
-                fc_order = self.map(2)
-                data = data.reshape((fc_shape[IDX_C_OUT], in_shape[IDX_C], in_shape[IDX_H],
-                                     in_shape[IDX_W]))
-                data = self.transpose(data)
-                node.reshaped_data = data.reshape(fc_shape[fc_order[0]], fc_shape[fc_order[1]])
-            else:
-                node.reshaped_data = self.transpose(data)
-
-        if replace:
-            for node in graph.nodes:
-                if node.data is not None:
-                    node.data[IDX_WEIGHTS] = node.reshaped_data
-                    del node.reshaped_data
 
 
 class GraphBuilder(object):
