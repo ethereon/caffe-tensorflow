@@ -3,8 +3,6 @@ from collections import namedtuple
 
 from .errors import KaffeError
 
-ParamShape = namedtuple('ParamShape', ['output_channels', 'input_channels', 'height', 'width'])
-
 TensorShape = namedtuple('TensorShape', ['batch_size', 'channels', 'height', 'width'])
 
 

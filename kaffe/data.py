@@ -105,9 +105,10 @@ class DataReshaper(object):
                 # The FC layer connected to the spatial layer needs to be
                 # re-wired to match the new spatial ordering.
                 in_shape = node.get_only_parent().output_shape
-                fc_shape = ParamShape(data.shape)
+                fc_shape = data.shape
                 fc_order = self.map(2)
-                data = data.reshape((fc_shape.output_channels, in_shape.channels, in_shape.height,
+                output_channels = fc_shape[0]
+                data = data.reshape((output_channels, in_shape.channels, in_shape.height,
                                      in_shape.width))
                 data = self.transpose(data)
                 node.reshaped_data = data.reshape(fc_shape[fc_order[0]], fc_shape[fc_order[1]])

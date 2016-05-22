@@ -105,14 +105,13 @@ class Graph(object):
     def __str__(self):
         hdr = '{:<20} {:<30} {:>20} {:>20}'.format('Type', 'Name', 'Param', 'Output')
         s = [hdr, '-' * 94]
-        fmt_tensor_shape = lambda ts: '({}, {}, {}, {})'.format(*ts)
         for node in self.topologically_sorted():
             # If the node has learned parameters, display the first one's shape.
             # In case of convolutions, this corresponds to the weights.
             data_shape = node.data[0].shape if node.data else '--'
             out_shape = node.output_shape or '--'
             s.append('{:<20} {:<30} {:>20} {:>20}'.format(node.kind, node.name, data_shape,
-                                                          fmt_tensor_shape(out_shape)))
+                                                          tuple(out_shape)))
         return '\n'.join(s)
 
 
