@@ -8,10 +8,6 @@ from kaffe import KaffeError, print_stderr
 from kaffe.tensorflow import TensorFlowTransformer
 
 
-class ArgError(Exception):
-    pass
-
-
 def fatal_error(msg):
     print_stderr(msg)
     exit(-1)
@@ -19,18 +15,18 @@ def fatal_error(msg):
 
 def validate_arguments(args):
     if (args.data_output_path is not None) and (args.caffemodel is None):
-        raise ArgError('No input data path provided.')
+        fatal_error('No input data path provided.')
     if (args.caffemodel is not None) and (args.data_output_path is None):
-        raise ArgError('No output data path provided.')
+        fatal_error('No output data path provided.')
     if (args.code_output_path is None) and (args.data_output_path is None):
-        raise ArgError('No output path specified.')
+        fatal_error('No output path specified.')
 
 
-def convert(def_path, caffemodel, data_output_path, code_output_path, phase='test'):
+def convert(def_path, caffemodel_path, data_output_path, code_output_path):
     try:
-        transformer = TensorFlowTransformer(def_path, caffemodel, phase=phase)
+        transformer = TensorFlowTransformer(def_path, caffemodel_path, phase=phase)
         print_stderr('Converting data...')
-        if caffemodel is not None:
+        if caffemodel_path is not None:
             data = transformer.transform_data()
             print_stderr('Saving data...')
             with open(data_output_path, 'wb') as data_out:
@@ -55,10 +51,7 @@ def main():
                         default='test',
                         help='The phase to convert: test (default) or train')
     args = parser.parse_args()
-    try:
-        validate_arguments(args)
-    except ArgError as err:
-        fatal_error(err)
+    validate_arguments(args)
     convert(args.def_path, args.caffemodel, args.data_output_path, args.code_output_path,
             args.phase)
 

@@ -99,6 +99,17 @@ class Graph(object):
         for node in sorted_nodes:
             node.output_shape = TensorShape(*NodeKind.compute_output_shape(node))
 
+    def replaced(self, new_nodes):
+        return Graph(nodes=new_nodes, name=self.name)
+
+    def transformed(self, *args):
+        graph = self
+        for transformer in args:
+            graph = transformer(graph)
+            assert graph is not None
+            assert isinstance(graph, Graph)
+        return graph
+
     def __contains__(self, key):
         return key in self.node_lut
 
@@ -118,14 +129,13 @@ class Graph(object):
 class GraphBuilder(object):
     '''Constructs a model graph from a Caffe protocol buffer definition.'''
 
-    def __init__(self, def_path, data_path=None, phase='test'):
+    def __init__(self, def_path, phase='test'):
         '''
         def_path: Path to the model definition (.prototxt)
         data_path: Path to the model data (.caffemodel)
         phase: Either 'test' or 'train'. Used for filtering phase-specific nodes.
         '''
         self.def_path = def_path
-        self.data_path = data_path
         self.phase = phase
         self.load()
 
@@ -189,33 +199,9 @@ class GraphBuilder(object):
                 node.output_shape = tuple(input_dim)
         return nodes
 
-    def fuse_relus(self, nodes):
-        '''Merge ReLUs with their inputs.'''
-        fused_nodes = []
-        for node in nodes:
-            if node.kind != NodeKind.ReLU:
-                continue
-            parent = node.get_only_parent()
-            if len(parent.children) != 1:
-                # We can only fuse this ReLU if its parent's
-                # value isn't used by any other node.
-                continue
-            # Rewrite the ReLU's children to its parent.
-            for child in node.children:
-                child.parents.remove(node)
-                parent.add_child(child)
-            # Disconnect the ReLU from the graph.
-            parent.children.remove(node)
-            fused_nodes.append(node)
-            # Annotate the fused node.
-            parent.metadata['relu'] = True
-        return [node for node in nodes if node not in fused_nodes]
-
-    def build(self, fuse_relus=True):
+    def build(self):
         '''
         Builds the graph from the Caffe layer definitions.
-
-        fuse_relu: If true, the ReLU nodes are merged with their input node.
         '''
         # Get the layers
         layers = self.params.layers or self.params.layer
@@ -265,14 +251,8 @@ class GraphBuilder(object):
                 #
                 # For both cases, future references to this top re-routes to this node.
                 node_outputs[output_name] = node
-        # Fuse rectified linear units if requested
-        if fuse_relus:
-            graph = Graph(nodes=self.fuse_relus(graph.nodes), name=graph.name)
-        # Pre-compute the output shape for each node
+
         graph.compute_output_shapes()
-        # Associate the node with its learned data
-        if self.data_path is not None:
-            DataInjector(self.def_path, self.data_path).inject(graph)
         return graph
 
 

@@ -3,8 +3,11 @@ import numpy as np
 from ..data import DataReshaper
 from ..errors import KaffeError, print_stderr
 from ..graph import GraphBuilder, NodeMapper
+from ..layers import NodeKind
+from ..transformers import DataInjector, DataReshaper, NodeRenamer, ReLUFuser
 
 from . import network
+
 
 class TensorFlowNode(object):
     '''An intermediate representation for TensorFlow operations.'''
@@ -189,29 +192,50 @@ class TensorFlowEmitter(object):
 class TensorFlowTransformer(object):
 
     def __init__(self, def_path, data_path, verbose=True, phase='test'):
-        self.data_reshaped = False
         self.verbose = verbose
         self.phase = phase
         self.load(def_path, data_path, phase)
+        self.params = None
         self.source = None
 
     def load(self, def_path, data_path, phase):
-        self.graph = GraphBuilder(def_path, data_path, phase).build()
-        for node in self.graph.nodes:
+        # Build the graph
+        graph = GraphBuilder(def_path, phase).build()
+
+        # Transform the graph
+        transformers = [
+            # Fuse ReLUs
+            ReLUFuser(),
+
+            # Rename nodes
             # Slashes are used for scoping in TensorFlow. Replace slashes
             # in node names with underscores.
             # (Caffe's GoogLeNet implementation uses slashes)
-            node.name = node.name.replace('/', '_')
+            NodeRenamer(lambda node: node.name.replace('/', '_'))
+        ]
+        if data_path is not None:
+            # Load and associate learned parameters
+            transformers.append(DataInjector(def_path, data_path))
+        self.graph = graph.transformed(*transformers)
+
+        # Display the graph
         if self.verbose:
             print_stderr(self.graph)
 
     def transform_data(self):
-        # Cache the graph source before mutating it.
-        self.transform_source()
-        mapping = {4: (2, 3, 1, 0),  # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
-                   2: (1, 0)}  # (c_o, c_i) -> (c_i, c_o)
-        DataReshaper(mapping).reshape(self.graph)
-        return {node.name: node.data for node in self.graph.nodes if node.data}
+        if self.params is None:
+            self.graph = self.graph.transformed(
+
+                # Reshape the parameters to TensorFlow's ordering
+                DataReshaper({
+                    # (c_o, c_i, h, w) -> (h, w, c_i, c_o)
+                    NodeKind.Convolution: (2, 3, 1, 0),
+
+                    # (c_o, c_i) -> (c_i, c_o)
+                    NodeKind.InnerProduct: (1, 0)
+                }))
+            self.params = {node.name: node.data for node in self.graph.nodes if node.data}
+        return self.params
 
     def transform_source(self):
         if self.source is None:
