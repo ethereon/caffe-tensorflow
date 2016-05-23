@@ -102,11 +102,12 @@ class Graph(object):
     def replaced(self, new_nodes):
         return Graph(nodes=new_nodes, name=self.name)
 
-    def transformed(self, *args):
+    def transformed(self, transformers):
         graph = self
-        for transformer in args:
+        for transformer in transformers:
             graph = transformer(graph)
-            assert graph is not None
+            if graph is None:
+                raise KaffeError('Transformer failed: {}'.format(transformer))
             assert isinstance(graph, Graph)
         return graph
 
