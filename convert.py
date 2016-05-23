@@ -22,7 +22,7 @@ def validate_arguments(args):
         fatal_error('No output path specified.')
 
 
-def convert(def_path, caffemodel_path, data_output_path, code_output_path):
+def convert(def_path, caffemodel_path, data_output_path, code_output_path, phase):
     try:
         transformer = TensorFlowTransformer(def_path, caffemodel_path, phase=phase)
         print_stderr('Converting data...')
