@@ -119,7 +119,9 @@ class DataReshaper(object):
             if node.data is None:
                 continue
             if node.kind not in self.reshaped_node_types:
-                print_stderr('Warning: parmaters not reshaped for node: {}'.format(node))
+                # Check for 2+ dimensional data
+                if any(len(tensor.shape) > 1 for tensor in node.data):
+                    print_stderr('Warning: parmaters not reshaped for node: {}'.format(node))
                 continue
             transpose_order = self.map(node.kind)
             weights = node.data[0]
@@ -191,11 +193,61 @@ class ReLUFuser(SubNodeFuser):
     Fuses rectified linear units with their parent nodes.
     '''
 
-    def is_eligible_pair(self, _, child):
-        return child.kind == NodeKind.ReLU
+    def __init__(self, allowed_parent_types=None):
+        # Fuse ReLUs when the parent node is one of the given types.
+        # If None, all node types are eligible.
+        self.allowed_parent_types = allowed_parent_types
+
+    def is_eligible_pair(self, parent, child):
+        return ((self.allowed_parent_types is None or parent.kind in self.allowed_parent_types) and
+                child.kind == NodeKind.ReLU)
 
     def merge(self, parent, _):
         parent.metadata['relu'] = True
+
+
+class BatchNormScaleBiasFuser(SubNodeFuser):
+    '''
+    The original batch normalization paper includes two learned
+    parameters: a scaling factor \gamma and a bias \beta.
+    Caffe's implementation does not include these two. However, it is commonly
+    replicated by adding a scaling+bias layer immidiately after the batch norm.
+
+    This fuser merges the scaling+bias layer with the batch norm.
+    '''
+
+    def is_eligible_pair(self, parent, child):
+        return (parent.kind == NodeKind.BatchNorm and child.kind == NodeKind.Scale and
+                child.parameters.axis == 1 and child.parameters.bias_term == True)
+
+    def merge(self, parent, child):
+        parent.scale_bias_node = child
+
+
+class BatchNormPreprocessor(object):
+    '''
+    Prescale batch normalization parameters.
+    Concatenate gamma (scale) and beta (bias) terms if set.
+    '''
+
+    def __call__(self, graph):
+        for node in graph.nodes:
+            if node.kind != NodeKind.BatchNorm:
+                continue
+            assert node.data is not None
+            assert len(node.data) == 3
+            mean, variance, scale = node.data
+            # Prescale the stats
+            scaling_factor = 1.0 / scale if scale != 0 else 0
+            mean *= scaling_factor
+            variance *= scaling_factor
+            # Replace with the updated values
+            node.data = [mean, variance]
+            if hasattr(node, 'scale_bias_node'):
+                # Include the scale and bias terms
+                gamma, beta = node.scale_bias_node.data
+                node.data += [gamma, beta]
+        return graph
 
 
 class NodeRenamer(object):
@@ -210,4 +262,29 @@ class NodeRenamer(object):
     def __call__(self, graph):
         for node in graph.nodes:
             node.name = self.renamer(node)
+        return graph
+
+
+class ParameterNamer(object):
+    '''
+    Convert layer data arrays to a dictionary mapping parameter names to their values.
+    '''
+
+    def __call__(self, graph):
+        for node in graph.nodes:
+            if node.data is None:
+                continue
+            if node.kind in (NodeKind.Convolution, NodeKind.InnerProduct):
+                names = ('weights',)
+                if node.parameters.bias_term:
+                    names += ('biases',)
+            elif node.kind == NodeKind.BatchNorm:
+                names = ('mean', 'variance')
+                if len(node.data) == 4:
+                    names += ('scale', 'offset')
+            else:
+                print_stderr('WARNING: Unhandled parameters: {}'.format(node.kind))
+                continue
+            assert len(names) == len(node.data)
+            node.data = dict(zip(names, node.data))
         return graph

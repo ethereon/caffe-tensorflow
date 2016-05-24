@@ -53,11 +53,11 @@ class Network(object):
         ignore_missing: If true, serialized weights for missing layers are ignored.
         '''
         data_dict = np.load(data_path).item()
-        for key in data_dict:
-            with tf.variable_scope(key, reuse=True):
-                for subkey, data in zip(('weights', 'biases'), data_dict[key]):
+        for op_name in data_dict:
+            with tf.variable_scope(op_name, reuse=True):
+                for param_name, data in data_dict[op_name].iteritems():
                     try:
-                        var = tf.get_variable(subkey)
+                        var = tf.get_variable(param_name)
                         session.run(var.assign(data))
                     except ValueError:
                         if not ignore_missing:
@@ -108,7 +108,8 @@ class Network(object):
              name,
              relu=True,
              padding=DEFAULT_PADDING,
-             group=1):
+             group=1,
+             biased=True):
         # Verify that the padding is acceptable
         self.validate_padding(padding)
         # Get the number of channels in the input
@@ -120,23 +121,24 @@ class Network(object):
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
         with tf.variable_scope(name) as scope:
             kernel = self.make_var('weights', shape=[k_h, k_w, c_i / group, c_o])
-            biases = self.make_var('biases', [c_o])
             if group == 1:
                 # This is the common-case. Convolve the input without any further complications.
-                conv = convolve(input, kernel)
+                output = convolve(input, kernel)
             else:
                 # Split the input into groups and then convolve each of them independently
                 input_groups = tf.split(3, group, input)
                 kernel_groups = tf.split(3, group, kernel)
                 output_groups = [convolve(i, k) for i, k in zip(input_groups, kernel_groups)]
                 # Concatenate the groups
-                conv = tf.concat(3, output_groups)
+                output = tf.concat(3, output_groups)
             # Add the biases
-            conv_output = tf.nn.bias_add(conv, biases)
+            if biased:
+                biases = self.make_var('biases', [c_o])
+                output = tf.nn.bias_add(output, biases)
             if relu:
                 # ReLU non-linearity
-                conv_output = tf.nn.relu(conv_output, name=scope.name)
-            return conv_output
+                output = tf.nn.relu(output, name=scope.name)
+            return output
 
     @layer
     def relu(self, input, name):
@@ -174,6 +176,10 @@ class Network(object):
         return tf.concat(concat_dim=axis, values=inputs, name=name)
 
     @layer
+    def add(self, inputs, name):
+        return tf.add_n(inputs, name=name)
+
+    @layer
     def fc(self, input, num_out, name, relu=True):
         with tf.variable_scope(name) as scope:
             input_shape = input.get_shape()
@@ -194,15 +200,39 @@ class Network(object):
     @layer
     def softmax(self, input, name):
         input_shape = map(lambda v: v.value, input.get_shape())
-        if len(input_shape)>2:
+        if len(input_shape) > 2:
             # For certain models (like NiN), the singleton spatial dimensions
             # need to be explicitly squeezed, since they're not broadcast-able
             # in TensorFlow's NHWC ordering (unlike Caffe's NCHW).
-            if input_shape[1]==1 and input_shape[2]==1:
+            if input_shape[1] == 1 and input_shape[2] == 1:
                 input = tf.squeeze(input, squeeze_dims=[1, 2])
             else:
                 raise ValueError('Rank 2 tensor input expected for softmax!')
         return tf.nn.softmax(input, name)
+
+    @layer
+    def batch_normalization(self, input, name, scale_offset=True, relu=False):
+        # NOTE: Currently, only inference is supported
+        with tf.variable_scope(name) as scope:
+            shape = [input.get_shape()[-1]]
+            if scale_offset:
+                scale = self.make_var('scale', shape=shape)
+                offset = self.make_var('offset', shape=shape)
+            else:
+                scale, offset = (None, None)
+            output = tf.nn.batch_normalization(
+                input,
+                mean=self.make_var('mean', shape=shape),
+                variance=self.make_var('variance', shape=shape),
+                offset=offset,
+                scale=scale,
+                # TODO: This is the default Caffe batch norm eps
+                # Get the actual eps from parameters
+                variance_epsilon=1e-5,
+                name=name)
+            if relu:
+                output = tf.nn.relu(output)
+            return output
 
     @layer
     def dropout(self, input, keep_prob, name):
