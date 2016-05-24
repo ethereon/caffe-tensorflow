@@ -10,7 +10,7 @@ from vgg import VGG16
 from alexnet import AlexNet
 from caffenet import CaffeNet
 from nin import NiN
-
+from resnet import ResNet50, ResNet101, ResNet152
 
 class DataSpec(object):
     '''Input data specifications for an ImageNet model.'''
@@ -32,38 +32,37 @@ class DataSpec(object):
         # However, using just the per-channel mean values instead doesn't affect things too much.
         self.mean = mean if mean is not None else np.array([104., 117., 124.])
 
+def alexnet_spec(batch_size=500):
+    '''Parameters used by AlexNet and its variants.'''
+    return DataSpec(batch_size=batch_size, scale_size=256, crop_size=227, isotropic=False)
+
+def std_spec(batch_size, isotropic=True):
+    '''Parameters commonly used by "post-AlexNet" architectures.'''
+    return DataSpec(batch_size=batch_size, scale_size=256, crop_size=224, isotropic=isotropic)
+
 # Collection of sample auto-generated models
-MODELS = (AlexNet, CaffeNet, GoogleNet, NiN, VGG16)
+MODELS = (AlexNet, CaffeNet, GoogleNet, NiN, ResNet50, ResNet101, ResNet152, VGG16)
 
 # The corresponding data specifications for the sample models
 # These specifications are based on how the models were trained.
 # The recommended batch size is based on a Titan X (12GB).
 MODEL_DATA_SPECS = {
 
-    AlexNet: DataSpec(batch_size=500,
-                      scale_size=256,
-                      crop_size=227,
-                      isotropic=False),
+    AlexNet: alexnet_spec(),
 
-    CaffeNet: DataSpec(batch_size=500,
-                       scale_size=256,
-                       crop_size=227,
-                       isotropic=False),
+    CaffeNet: alexnet_spec(),
 
-    GoogleNet: DataSpec(batch_size=200,
-                        scale_size=256,
-                        crop_size=224,
-                        isotropic=False),
+    GoogleNet: std_spec(batch_size=200, isotropic=False),
 
-    NiN: DataSpec(batch_size=500,
-                  scale_size=256,
-                  crop_size=224,
-                  isotropic=True),
+    ResNet50: std_spec(batch_size=25),
 
-    VGG16: DataSpec(batch_size=25,
-                    scale_size=256,
-                    crop_size=224,
-                    isotropic=True),
+    ResNet101: std_spec(batch_size=25),
+
+    ResNet152: std_spec(batch_size=25),
+
+    NiN: std_spec(batch_size=500),
+
+    VGG16: std_spec(batch_size=224)
 }
 
 
