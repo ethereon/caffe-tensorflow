@@ -1,7 +1,6 @@
 from google.protobuf import text_format
 
 from .caffe import get_caffe_resolver
-from .data import DataInjector
 from .errors import KaffeError, print_stderr
 from .layers import LayerAdapter, LayerType, NodeKind, NodeDispatch
 from .shapes import TensorShape

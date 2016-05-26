@@ -1,6 +1,5 @@
 import numpy as np
 
-from ..data import DataReshaper
 from ..errors import KaffeError, print_stderr
 from ..graph import GraphBuilder, NodeMapper
 from ..layers import NodeKind
