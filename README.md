@@ -24,6 +24,8 @@ The following converted models have been verified on the ILSVRC2012 validation s
 
 | Model                                                 | Top 5 Accuracy |
 |:------------------------------------------------------|---------------:|
+| [ResNet 152](http://arxiv.org/abs/1512.03385)         |         92.92% |
+| [ResNet 101](http://arxiv.org/abs/1512.03385)         |         92.63% |
 | [ResNet 50](http://arxiv.org/abs/1512.03385)          |         92.02% |
 | [VGG 16](http://arxiv.org/abs/1409.1556)              |         89.88% |
 | [GoogLeNet](http://arxiv.org/abs/1409.4842)           |         89.06% |
