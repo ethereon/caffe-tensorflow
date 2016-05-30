@@ -38,18 +38,30 @@ def classify(model_data_path, image_paths):
     # Construct the network
     net = models.GoogleNet({'data': input_node})
 
+    # Create an image producer (loads and processes images in parallel)
+    image_producer = dataset.ImageProducer(image_paths=image_paths, data_spec=spec)
+
     with tf.Session() as sesh:
+        # Start the image processing workers
+        coordinator = tf.train.Coordinator()
+        threads = image_producer.start(session=sesh, coordinator=coordinator)
+
         # Load the converted parameters
         print('Loading the model')
         net.load(model_data_path, sesh)
+
         # Load the input image
         print('Loading the images')
-        input_images = dataset.load_images(image_paths, spec).eval()
+        indices, input_images = image_producer.get(sesh)
+
         # Perform a forward pass through the network to get the class probabilities
         print('Classifying')
         probs = sesh.run(net.get_output(), feed_dict={input_node: input_images})
-        display_results(image_paths, probs)
+        display_results([image_paths[i] for i in indices], probs)
 
+        # Stop the worker threads
+        coordinator.request_stop()
+        coordinator.join(threads, stop_grace_period_secs=2)
 
 def main():
     # Parse arguments

@@ -12,10 +12,18 @@ from caffenet import CaffeNet
 from nin import NiN
 from resnet import ResNet50, ResNet101, ResNet152
 
+
 class DataSpec(object):
     '''Input data specifications for an ImageNet model.'''
 
-    def __init__(self, batch_size, scale_size, crop_size, isotropic, channels=3, mean=None):
+    def __init__(self,
+                 batch_size,
+                 scale_size,
+                 crop_size,
+                 isotropic,
+                 channels=3,
+                 mean=None,
+                 bgr=True):
         # The recommended batch size for this model
         self.batch_size = batch_size
         # The image should be scaled to this size first during preprocessing
@@ -31,10 +39,14 @@ class DataSpec(object):
         # Some of the earlier models (like AlexNet) used a spatial three-channeled mean.
         # However, using just the per-channel mean values instead doesn't affect things too much.
         self.mean = mean if mean is not None else np.array([104., 117., 124.])
+        # Whether this model expects images to be in BGR order
+        self.expects_bgr = True
+
 
 def alexnet_spec(batch_size=500):
     '''Parameters used by AlexNet and its variants.'''
     return DataSpec(batch_size=batch_size, scale_size=256, crop_size=227, isotropic=False)
+
 
 def std_spec(batch_size, isotropic=True):
     '''Parameters commonly used by "post-AlexNet" architectures.'''
@@ -47,21 +59,13 @@ MODELS = (AlexNet, CaffeNet, GoogleNet, NiN, ResNet50, ResNet101, ResNet152, VGG
 # These specifications are based on how the models were trained.
 # The recommended batch size is based on a Titan X (12GB).
 MODEL_DATA_SPECS = {
-
     AlexNet: alexnet_spec(),
-
     CaffeNet: alexnet_spec(),
-
     GoogleNet: std_spec(batch_size=200, isotropic=False),
-
     ResNet50: std_spec(batch_size=25),
-
     ResNet101: std_spec(batch_size=25),
-
     ResNet152: std_spec(batch_size=25),
-
     NiN: std_spec(batch_size=500),
-
     VGG16: std_spec(batch_size=224)
 }
 
