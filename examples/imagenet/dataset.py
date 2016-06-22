@@ -119,9 +119,10 @@ class ImageProducer(object):
         # Read the file
         file_data = tf.read_file(image_path)
         # Decode the image data
-        img = tf.cond(is_jpeg,
-                      lambda: tf.image.decode_jpeg(file_data, channels=3),
-                      lambda: tf.image.decode_png(file_data, channels=3))
+        img = tf.cond(
+            is_jpeg,
+            lambda: tf.image.decode_jpeg(file_data, channels=self.data_spec.channels),
+            lambda: tf.image.decode_png(file_data, channels=self.data_spec.channels))
         if self.data_spec.expects_bgr:
             # Convert from RGB channel ordering to BGR
             # This matches, for instance, how OpenCV orders the channels.
@@ -149,7 +150,7 @@ class ImageProducer(object):
             extension = osp.splitext(path)[-1].lower()
             if extension in ('.jpg', '.jpeg'):
                 return True
-            if not extension == '.png':
+            if extension != '.png':
                 raise ValueError('Unsupported image format: {}'.format(extension))
             return False
 
