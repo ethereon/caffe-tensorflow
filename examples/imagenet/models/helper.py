@@ -66,7 +66,7 @@ MODEL_DATA_SPECS = {
     ResNet101: std_spec(batch_size=25),
     ResNet152: std_spec(batch_size=25),
     NiN: std_spec(batch_size=500),
-    VGG16: std_spec(batch_size=224)
+    VGG16: std_spec(batch_size=25)
 }
 
 
