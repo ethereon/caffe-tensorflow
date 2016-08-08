@@ -40,6 +40,10 @@ class Network(object):
         self.layers = dict(inputs)
         # If true, the resulting variables are set as trainable
         self.trainable = trainable
+        # Switch variable for dropout
+        self.use_dropout = tf.placeholder_with_default(tf.constant(1.0),
+                                                       shape=[],
+                                                       name='use_dropout')
         self.setup()
 
     def setup(self):
@@ -236,4 +240,5 @@ class Network(object):
 
     @layer
     def dropout(self, input, keep_prob, name):
-        return tf.nn.dropout(input, keep_prob, name=name)
+        keep = 1 - self.use_dropout + (self.use_dropout * keep_prob)
+        return tf.nn.dropout(input, keep, name=name)
